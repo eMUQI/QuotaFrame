@@ -6,6 +6,8 @@
 #include "esp_lcd_panel_io.h"
 #include "lvgl.h"
 #include "orientation.hpp"
+#include "panel_settings.hpp"
+#include "gesture_input.hpp"
 #include "usage_panel_state/display_settings.hpp"
 #include "usage_panel_state/page_state.hpp"
 #include "usage_panel_state/panel_presentation.hpp"
@@ -29,7 +31,9 @@ public:
     bool begin(ScreenRotation initial_rotation);
 
     void request_page(Page page) { requested_page_.store(page, std::memory_order_relaxed); }
-    bool apply_settings(const DisplaySettings& settings, bool visible, bool save_error = false, bool modified = false);
+    bool apply_settings(const PanelSettings& settings, bool visible, bool save_error = false, bool modified = false);
+    bool take_gesture_toggle() { return gesture_toggle_.exchange(false); }
+    void show_gesture_status(GestureStatus status, uint8_t progress, bool visible);
     SettingsAction take_settings_action()
     {
         return settings_action_.exchange(SettingsAction::None, std::memory_order_relaxed);
@@ -106,6 +110,7 @@ private:
 
     void build_settings(lv_obj_t* screen);
     static void settings_event(lv_event_t* event);
+    static void gesture_toggle_event(lv_event_t* event);
     static void long_press_event(lv_event_t* event);
     void build_header(lv_obj_t* screen);
     void build_overview(lv_obj_t* screen);
@@ -140,6 +145,11 @@ private:
     lv_obj_t* settings_buttons_[9]{};
     lv_obj_t* settings_timeout_ = nullptr;
     lv_obj_t* settings_hint_ = nullptr;
+    lv_obj_t* gesture_toggle_button_ = nullptr;
+    lv_obj_t* gesture_toggle_label_ = nullptr;
+    lv_obj_t* gesture_status_label_ = nullptr;
+    lv_obj_t* gesture_progress_ = nullptr;
+    std::atomic<bool> gesture_toggle_{false};
     uint8_t brightness_percent_ = 50;  // Serialized by the LVGL lock.
     std::atomic<Page> requested_page_{Page::Overview};
     std::atomic<bool> ota_active_{false};

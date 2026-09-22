@@ -4,6 +4,8 @@
 #include "bsp/esp_mosaico.h"
 #include "display_ui.hpp"
 #include "local_clock.hpp"
+#include "gesture_input.hpp"
+#include "panel_settings.hpp"
 #include "usage_panel_state/panel_presentation.hpp"
 #include "power_monitor.hpp"
 #include "usage_panel_state/render_schedule.hpp"
@@ -80,6 +82,7 @@ OtaSession ota(ota_backend);
 AtomicPowerSource ota_power_source;
 BleService ble;
 DisplayUi ui;
+GestureInput gestures;
 LinkUpdate ble_link{};
 std::atomic<Page> status_page{Page::Overview};
 std::atomic<bool> ai_button_pressed{false};
@@ -191,11 +194,12 @@ extern "C" void app_main(void)
     }
     const bool ai_button_ready = init_ai_button();
 
-    DisplaySettings saved_settings = load_display_settings({
+    PanelSettings saved_settings = load_panel_settings({
         CONFIG_MOSAICO_USAGE_PANEL_DISPLAY_BRIGHTNESS_PERCENT,
         CONFIG_MOSAICO_USAGE_PANEL_SCREENSAVER_TIMEOUT_SECONDS});
-    DisplaySettings settings = saved_settings;
+    PanelSettings settings = saved_settings;
     bool settings_open = false;
+    if (!gestures.begin()) ESP_LOGW(TAG, "gesture worker unavailable");
     ui.apply_settings(settings, false);
 
     ScreenRotation desired_rotation = initial_rotation;
@@ -259,6 +263,7 @@ extern "C" void app_main(void)
             dirty = true;
         }
         if (ui.take_touch_down()) {
+            gestures.invalidate();
             const bool was_asleep = screensaver.view(now_ms).active;
             screensaver.note_touch_down(now_ms);
             if (was_asleep) {
@@ -269,6 +274,7 @@ extern "C" void app_main(void)
         }
         if (ai_button_ready &&
             ai_button_pressed.exchange(false, std::memory_order_relaxed)) {
+            gestures.invalidate();
             const bool was_asleep = screensaver.view(now_ms).active;
             screensaver.note_touch_down(now_ms);
             if (was_asleep) {
@@ -294,9 +300,14 @@ extern "C" void app_main(void)
             screensaver.reset(now_ms, page);
             dirty = true;
         }
+        if (ui.take_gesture_toggle() && settings_open && !settings_blocked) {
+            settings.gestures = !settings.gestures;
+            ui.apply_settings(settings, true, false, settings_differ(settings, saved_settings));
+            dirty = true;
+        }
         if (action != SettingsAction::None && !settings_blocked) {
             bool save_error = false;
-            const DisplaySettings before = settings;
+            const PanelSettings before = settings;
             const bool was_open = settings_open;
             if (action == SettingsAction::Open) settings_open = true;
             else if (settings_open) {
@@ -307,7 +318,7 @@ extern "C" void app_main(void)
                 else if (action >= SettingsAction::TimeoutOff && action <= SettingsAction::Timeout30)
                     select_clock_timeout(action, settings.clock_timeout_seconds);
                 else if (action == SettingsAction::Save) {
-                    const esp_err_t error = save_display_settings(settings);
+                    const esp_err_t error = save_panel_settings(settings);
                     save_error = error != ESP_OK;
                     if (!save_error) { saved_settings = settings; settings_open = false; }
                     else ESP_LOGW(TAG, "display settings save failed: %s", esp_err_to_name(error));
@@ -317,8 +328,7 @@ extern "C" void app_main(void)
                 }
             }
             if (!ui.apply_settings(settings, settings_open, save_error,
-                    settings.brightness != saved_settings.brightness ||
-                    settings.clock_timeout_seconds != saved_settings.clock_timeout_seconds)) {
+                    settings_differ(settings, saved_settings))) {
                 settings = before;
                 settings_open = was_open;
                 ESP_LOGW(TAG, "display settings preview failed");
@@ -329,6 +339,7 @@ extern "C" void app_main(void)
         }
         const Page requested = ui.requested_page();
         if (requested != page) {
+            gestures.invalidate();
             page = requested;
             status_page.store(page, std::memory_order_relaxed);
             dirty = true;
@@ -339,8 +350,10 @@ extern "C" void app_main(void)
             if (event.type == AppEventType::Usage) {
                 model.apply(event.usage, esp_timer_get_time() / 1000);
             } else if (event.type == AppEventType::Link) {
+                gestures.invalidate();
                 ble_link = event.link;
             } else if (event.type == AppEventType::ScreenPage) {
+                gestures.invalidate();
                 if (ota_view.phase == OtaPhase::Idle && !ble_link.has_passkey) {
                     if (screensaver.view(now_ms).active) page = screensaver.restore_page();
                     page = page_after_swipe(page, event.previous_page
@@ -353,6 +366,7 @@ extern "C" void app_main(void)
                     status_page.store(page, std::memory_order_relaxed);
                 }
             } else if (event.type == AppEventType::ScreenToggle) {
+                gestures.invalidate();
                 settings = saved_settings;
                 settings_open = false;
                 ui.apply_settings(settings, false);
@@ -438,6 +452,7 @@ extern "C" void app_main(void)
                 woke = tilt_detector.update(accel_x, accel_y, accel_z) || woke;
 #endif
                 if (woke) {
+                    gestures.invalidate();
                     screensaver.note_shake(now_ms);
                     dirty = true;
                 }
@@ -455,6 +470,32 @@ extern "C" void app_main(void)
         screensaver.update(
             now_ms, page, ble_link.has_passkey,
             ota_view.phase != OtaPhase::Idle || show_ota_error || settings_open);
+        const bool gesture_allowed = !settings_open && !ble_link.has_passkey &&
+            ota_view.phase == OtaPhase::Idle && !show_ota_error && desired_rotation == applied_rotation;
+        gestures.configure(saved_settings.gestures, gesture_allowed,
+            screensaver.view(now_ms).active, page, applied_rotation);
+        GestureEvent gesture{};
+        if (gestures.take(gesture, esp_timer_get_time() / 1000)) {
+            const GestureEffect effect = route_gesture(gesture.action, gesture_allowed,
+                                                       screensaver.view(now_ms).active);
+            if (effect == GestureEffect::Wake) {
+                screensaver.note_touch_down(now_ms);
+                if (!screensaver.view(now_ms).active) page = screensaver.restore_page();
+            } else if (effect == GestureEffect::Clock) {
+                screensaver.enter_clock(now_ms, page);
+            } else if (effect == GestureEffect::Next || effect == GestureEffect::Previous) {
+                page = page_after_swipe(page, effect == GestureEffect::Next
+                    ? SwipeDirection::Next : SwipeDirection::Previous);
+                screensaver.reset(now_ms, page);
+            }
+            if (effect != GestureEffect::None) {
+                ui.request_page(page);
+                status_page.store(page, std::memory_order_relaxed);
+                gestures.invalidate();
+                ESP_LOGI(TAG, "gesture action=%u effect=%u", unsigned(gesture.action), unsigned(effect));
+                dirty = true;
+            }
+        }
         const ScreensaverView screensaver_view = screensaver.view(now_ms);
         const PanelPresentation presentation{
             .clock = format_clock_view(
@@ -487,6 +528,19 @@ extern "C" void app_main(void)
             last_render_key = render_key;
             has_last_render_key = true;
             dirty = false;
+        }
+        const auto gesture_status = gestures.status();
+        const auto gesture_progress = gestures.progress();
+        const bool gesture_feedback_visible = saved_settings.gestures && gesture_allowed && !screensaver_view.active;
+        static GestureStatus shown_gesture_status = GestureStatus::Off;
+        static uint8_t shown_gesture_progress = 0;
+        static bool shown_gesture_feedback = false;
+        if (shown_gesture_status != gesture_status || shown_gesture_progress != gesture_progress ||
+            shown_gesture_feedback != gesture_feedback_visible) {
+            ui.show_gesture_status(gesture_status, gesture_progress, gesture_feedback_visible);
+            shown_gesture_status = gesture_status;
+            shown_gesture_progress = gesture_progress;
+            shown_gesture_feedback = gesture_feedback_visible;
         }
         last_checked_second = second;
 

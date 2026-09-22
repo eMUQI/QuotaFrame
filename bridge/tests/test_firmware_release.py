@@ -113,12 +113,23 @@ class FirmwareReleaseTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(FirmwareReleaseError):
             await source.download_image(manifest.for_target("m5sticks3"))
 
-        too_large = json.loads(self.manifest(size=4 * 1024 * 1024 + 1))
+        too_large = json.loads(self.manifest(size=7 * 1024 * 1024 + 1))
         source = FirmwareReleaseSource(
             fetcher=lambda _url, _limit: json.dumps(too_large).encode()
         )
         with self.assertRaises(FirmwareReleaseError):
             await source.fetch_manifest(self.manifest_url)
+
+    async def test_accepts_mosaico_image_within_expanded_ota_slot(self) -> None:
+        source = FirmwareReleaseSource(
+            fetcher=lambda _url, _limit: self.manifest(
+                target="esp_mosaico", firmware_project="mosaico_usage_panel",
+                size=7 * 1024 * 1024,
+            )
+        )
+        manifest = await source.fetch_manifest(self.manifest_url)
+        image = manifest.for_target("esp_mosaico", "mosaico_usage_panel")
+        self.assertEqual(image.size, 7 * 1024 * 1024)
 
     async def test_rejects_noncanonical_semver(self) -> None:
         for version in ("01.2.3", "1.02.3", "1.2.03", "1.2.3-alpha..1", "1.2.3-01"):

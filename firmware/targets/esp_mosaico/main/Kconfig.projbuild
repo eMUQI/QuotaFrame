@@ -88,6 +88,34 @@ config MOSAICO_USAGE_PANEL_TILT_WAKE_DEGREES
 
 endmenu
 
+menu "Camera gestures"
+
+config MOSAICO_GESTURE_INPUT
+    bool "Build local CameraBoard gesture input"
+    default y
+    help
+        Include OV3640 capture and ESP-DL models. Runtime capture remains off
+        until enabled and saved in the display settings. The camera occupies
+        the left slot and GPIO33, so USB Serial/JTAG cannot be used concurrently.
+
+config MOSAICO_CAMERA_ROTATION
+    int "Camera mounting correction (0, 90, 180 or 270 degrees clockwise)"
+    range 0 270
+    default 180
+    depends on MOSAICO_GESTURE_INPUT
+    help
+        Rotates the raw image into panel rotation-0 coordinates. The current
+        display rotation is then inverted. Calibrate this on the physical board.
+
+config MOSAICO_CAMERA_MIRROR
+    bool "Mirror the camera horizontally before rotation"
+    default y
+    depends on MOSAICO_GESTURE_INPUT
+    help
+        Mirror the front-facing camera into the user's screen coordinates.
+
+endmenu
+
 menu "Bluetooth"
 
 config MOSAICO_USAGE_PANEL_BLE_ADVERTISING_PREFIX

@@ -769,20 +769,20 @@ void DisplayUi::build_settings(lv_obj_t* screen)
     lv_obj_set_style_bg_color(settings_panel_, lv_color_hex(COLOR_BG), 0);
     lv_obj_set_style_bg_opa(settings_panel_, LV_OPA_COVER, 0);
     lv_obj_remove_flag(settings_panel_, LV_OBJ_FLAG_SCROLLABLE);
-    auto* title = make_label(settings_panel_, "BRIGHTNESS", MARGIN, 24,
+    auto* title = make_label(settings_panel_, "BRIGHTNESS", MARGIN, 16,
                             &lv_font_montserrat_16, COLOR_MUTED);
     lv_obj_set_style_text_letter_space(title, 1, 0);
-    settings_brightness_ = make_label(settings_panel_, "", MARGIN, 58, &lv_font_montserrat_48);
+    settings_brightness_ = make_label(settings_panel_, "", MARGIN, 42, &lv_font_montserrat_48);
     lv_obj_t* divider = lv_obj_create(settings_panel_);
     lv_obj_remove_style_all(divider);
-    lv_obj_set_pos(divider, MARGIN, 158);
+    lv_obj_set_pos(divider, MARGIN, 128);
     lv_obj_set_size(divider, CARD_W, 1);
     lv_obj_set_style_bg_color(divider, lv_color_hex(COLOR_LINE), 0);
     lv_obj_set_style_bg_opa(divider, LV_OPA_COVER, 0);
-    title = make_label(settings_panel_, "AUTO CLOCK", MARGIN, 180,
+    title = make_label(settings_panel_, "AUTO CLOCK", MARGIN, 145,
                        &lv_font_montserrat_16, COLOR_MUTED);
     lv_obj_set_style_text_letter_space(title, 1, 0);
-    settings_timeout_ = make_label(settings_panel_, "AFTER IDLE / MIN", MARGIN, 207,
+    settings_timeout_ = make_label(settings_panel_, "AFTER IDLE / MIN", MARGIN, 170,
                                    &lv_font_montserrat_14, COLOR_MUTED);
     settings_hint_ = make_label(settings_panel_, "", MARGIN, 322,
                                &montserrat_semibold_13, COLOR_TEXT);
@@ -791,13 +791,13 @@ void DisplayUi::build_settings(lv_obj_t* screen)
         SettingsAction::TimeoutOff, SettingsAction::Timeout1, SettingsAction::Timeout5,
         SettingsAction::Timeout10, SettingsAction::Timeout30, SettingsAction::Save, SettingsAction::Cancel};
     const int x[] = {288, 376, 24, 112, 200, 288, 376, 250, MARGIN};
-    const int y[] = {58, 58, 244, 244, 244, 244, 244, 349, 349};
+    const int y[] = {38, 38, 200, 200, 200, 200, 200, 349, 349};
     for (size_t i = 0; i < 9; ++i) {
         lv_obj_t* button = lv_button_create(settings_panel_);
         settings_buttons_[i] = button;
         lv_obj_remove_style_all(button);
         lv_obj_set_pos(button, x[i], y[i]);
-        lv_obj_set_size(button, i < 7 ? 80 : 206, i < 2 ? 80 : 64);
+        lv_obj_set_size(button, i < 7 ? 80 : 206, i < 2 ? 72 : (i < 7 ? 52 : 64));
         style_panel(button);
         lv_obj_set_style_text_color(button, lv_color_hex(COLOR_MUTED), 0);
         lv_obj_set_style_text_font(button, i < 2 ? &lv_font_montserrat_30 : &lv_font_montserrat_20, 0);
@@ -816,10 +816,34 @@ void DisplayUi::build_settings(lv_obj_t* screen)
         lv_label_set_text(label, labels[i]);
         lv_obj_center(label);
     }
+#if CONFIG_MOSAICO_GESTURE_INPUT
+    gesture_toggle_button_ = lv_button_create(settings_panel_);
+    lv_obj_remove_style_all(gesture_toggle_button_);
+    lv_obj_set_pos(gesture_toggle_button_, MARGIN, 270);
+    lv_obj_set_size(gesture_toggle_button_, CARD_W, 44);
+    style_panel(gesture_toggle_button_);
+    lv_obj_set_style_bg_color(gesture_toggle_button_, lv_color_hex(COLOR_TRACK), LV_STATE_PRESSED);
+    gesture_toggle_label_ = make_label(gesture_toggle_button_, "HAND GESTURES / OFF", 12, 12,
+                                      &montserrat_semibold_13, COLOR_TEXT);
+    lv_obj_add_event_cb(gesture_toggle_button_, gesture_toggle_event, LV_EVENT_CLICKED, this);
+    gesture_status_label_ = make_label(screen, "", MARGIN, HEADER_H + 8,
+                                       &montserrat_semibold_13, COLOR_MUTED);
+    lv_obj_add_flag(gesture_status_label_, LV_OBJ_FLAG_HIDDEN);
+    gesture_progress_ = lv_bar_create(screen);
+    lv_obj_remove_style_all(gesture_progress_);
+    lv_obj_set_pos(gesture_progress_, MARGIN, HEADER_H - 4);
+    lv_obj_set_size(gesture_progress_, CARD_W, 3);
+    lv_bar_set_range(gesture_progress_, 0, 100);
+    lv_obj_set_style_bg_color(gesture_progress_, lv_color_hex(COLOR_TRACK), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(gesture_progress_, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(gesture_progress_, lv_color_hex(COLOR_RESET), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(gesture_progress_, LV_OPA_COVER, LV_PART_INDICATOR);
+    lv_obj_add_flag(gesture_progress_, LV_OBJ_FLAG_HIDDEN);
+#endif
     lv_obj_add_flag(settings_panel_, LV_OBJ_FLAG_HIDDEN);
 }
 
-bool DisplayUi::apply_settings(const DisplaySettings& settings, bool visible, bool save_error, bool modified)
+bool DisplayUi::apply_settings(const PanelSettings& settings, bool visible, bool save_error, bool modified)
 {
     DisplayLock lock;
     if (!lock) return false;
@@ -830,6 +854,8 @@ bool DisplayUi::apply_settings(const DisplaySettings& settings, bool visible, bo
             return false;
         brightness_percent_ = settings.brightness;
     }
+    if (gesture_toggle_label_)
+        lv_label_set_text(gesture_toggle_label_, settings.gestures ? "HAND GESTURES / ON" : "HAND GESTURES / OFF");
     const bool was_visible = settings_visible_.exchange(visible, std::memory_order_relaxed);
     lv_label_set_text_fmt(settings_brightness_, "%u%%", settings.brightness);
     lv_obj_set_state(settings_buttons_[0], LV_STATE_DISABLED, settings.brightness <= 1);
@@ -850,6 +876,35 @@ bool DisplayUi::apply_settings(const DisplaySettings& settings, bool visible, bo
         lv_obj_move_foreground(settings_panel_);
     } else if (!visible) lv_obj_add_flag(settings_panel_, LV_OBJ_FLAG_HIDDEN);
     return true;
+}
+
+void DisplayUi::gesture_toggle_event(lv_event_t* event)
+{
+    auto* ui = static_cast<DisplayUi*>(lv_event_get_user_data(event));
+    if (ui->settings_visible_.load()) ui->gesture_toggle_ = true;
+}
+
+void DisplayUi::show_gesture_status(GestureStatus status, uint8_t progress, bool visible)
+{
+    if (!gesture_status_label_) return;
+    DisplayLock lock;
+    if (!lock) return;
+    const char* text = "";
+    if (visible) {
+        if (status == GestureStatus::Starting) text = "CAMERA STARTING";
+        else if (status == GestureStatus::CameraError) text = "CHECK LEFT CAMERA / RETRY IN SETTINGS";
+        else if (status == GestureStatus::MemoryError) text = "GESTURES UNAVAILABLE / LOW MEMORY";
+        else if (status == GestureStatus::Fault) text = "GESTURES UNAVAILABLE / RESTART DEVICE";
+        else if (progress) text = "HOLD OK TO ENTER CLOCK";
+    }
+    lv_label_set_text(gesture_status_label_, text);
+    lv_obj_set_flag(gesture_status_label_, LV_OBJ_FLAG_HIDDEN, !text[0]);
+    lv_obj_set_flag(gesture_progress_, LV_OBJ_FLAG_HIDDEN, !visible || !progress);
+    if (text[0]) lv_obj_move_foreground(gesture_status_label_);
+    if (visible && progress) {
+        lv_bar_set_value(gesture_progress_, progress, LV_ANIM_OFF);
+        lv_obj_move_foreground(gesture_progress_);
+    }
 }
 
 void DisplayUi::settings_event(lv_event_t* event)

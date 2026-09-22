@@ -25,7 +25,7 @@ eim run "idf.py -C firmware/targets/esp_mosaico --preview set-target esp32s31" v
 eim run "idf.py -C firmware/targets/esp_mosaico build" v6.1
 ```
 
-构建产物为 `build/mosaico_usage_panel.bin`，两个 app 分区均为 4 MiB，Folder Push 总传输限额为 4 MiB + 512 字节，额外空间用于 manifest。
+构建产物为 `build/mosaico_usage_panel.bin`，两个 app 分区均为 7 MiB，Folder Push 总传输限额为 7 MiB + 512 字节，额外空间用于 manifest。
 
 ## 当前实现
 
@@ -35,6 +35,12 @@ eim run "idf.py -C firmware/targets/esp_mosaico build" v6.1
 - 显示、触控、旋转、亮度和 LVGL 锁全部交给乐鑫 BSP：`bsp_display_start_with_config()` 一次性完成 esp_lvgl_adapter 初始化、CO5300 注册、CST9217 注册与区域对齐，`bsp_display_set_rotation()` 同时旋转面板和触控；
 - `usage_core` / `usage_protocol` / `usage_ble` / `usage_ota` 与其他目标共用，BLE 广播前缀 `QF-Mosaico-`，状态身份 `ESP-Mosaico`，型号标识 `esp_mosaico`；
 - 触控标签与左右滑动切页之外，板载 AI 键单击可唤醒并切换到下一页。
+
+### 本地手势输入
+
+左槽 OV3640 CameraBoard 可选开启本地手势：左挥下一页、右挥上一页，时钟中首挥只恢复原页；👌 OK 稳定保持约 500 ms 进入时钟。设置中的 `HAND GESTURES` 默认关闭，需保存后启用。图像仅在本机处理。
+
+模型与代码内嵌同一应用，首次从旧 4 MiB 分区升级必须有线迁移。保留设置时使用分段烧录，不能用填充后的完整镜像替代。依赖来源见 [CAMERA_UPSTREAM.md](CAMERA_UPSTREAM.md)，安装、恢复与实机验证见[手势验收指南](../../../docs/validation/mosaico-gestures.md)。当前仅通过软件测试和构建；相机方向、识别率、性能、功耗和提示布局仍待设备验收。
 
 ### 显示刷新
 
@@ -66,7 +72,7 @@ TE 信号缺失时最多等待 25 ms 后继续刷新，并在超时、恢复状�
 eim run "idf.py -C firmware/targets/esp_mosaico/test_apps/logic build" v6.1
 ```
 
-只覆盖本目标独有的 `local_clock` 和 `orientation`。共享面板行为由 `firmware/test_apps/panel_state` 覆盖。没有实机时该命令只证明测试镜像编译通过。
+覆盖本目标独有的 `local_clock`、`orientation`、手势轨迹/动作路由和图像坐标转换。共享面板行为由 `firmware/test_apps/panel_state` 覆盖。没有实机时该命令只证明测试镜像编译通过。
 
 ## 后续步骤
 

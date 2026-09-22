@@ -15,10 +15,11 @@ from urllib.parse import urlsplit
 from quotaframe_bridge.protocol.validation import unique_object, validate_identifier
 from quotaframe_bridge.release_config import release_repository
 from quotaframe_bridge.versioning import SemVer, VersionError
+from quotaframe_bridge.targets import TARGETS
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 MAX_MANIFEST_BYTES = 64 * 1024
-MAX_IMAGE_BYTES = 4 * 1024 * 1024
+MAX_IMAGE_BYTES = max(target.ota_partition_bytes for target in TARGETS)
 
 
 class FirmwareReleaseError(ValueError):

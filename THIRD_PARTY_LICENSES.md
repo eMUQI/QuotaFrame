@@ -566,3 +566,59 @@ SOFTWARE.
 - Source: https://components.espressif.com/components/tangyumei3535/bmm150_sensorapi/versions/1.0.0
 - SPDX conclusion from distributed license: `BSD-3-Clause`
 - Copyright/notice: https://components.espressif.com/components/tangyumei3535/bmm150_sensorapi/versions/1.0.0/license
+
+## `espressif/esp-dl`
+
+- ESP-Mosaico version: `3.3.11`
+- Source: https://components.espressif.com/components/espressif/esp-dl/versions/3.3.11
+- SPDX conclusion: `MIT`
+- Copyright/notice: https://components.espressif.com/components/espressif/esp-dl/versions/3.3.11/license
+
+## `espressif/esp_video`
+
+- ESP-Mosaico version: `2.5.0`
+- Source: https://components.espressif.com/components/espressif/esp_video/versions/2.5.0
+- SPDX conclusion: `LicenseRef-Espressif-MIT`
+- Copyright/notice: https://components.espressif.com/components/espressif/esp_video/versions/2.5.0/license
+
+## `espressif/esp_cam_sensor`
+
+- ESP-Mosaico version: `2.6.0`
+- Source: https://components.espressif.com/components/espressif/esp_cam_sensor/versions/2.6.0
+- SPDX conclusion: `Apache-2.0`
+- Copyright/notice: https://components.espressif.com/components/espressif/esp_cam_sensor/versions/2.6.0/license
+
+## `espressif/esp_sccb_intf`
+
+- ESP-Mosaico version: `0.0.8`
+- Source: https://components.espressif.com/components/espressif/esp_sccb_intf/versions/0.0.8
+- SPDX conclusion: `Apache-2.0`
+- Copyright/notice: https://components.espressif.com/components/espressif/esp_sccb_intf/versions/0.0.8/license
+
+## `espressif/dl_fft`
+
+- ESP-Mosaico version: `0.7.0`
+- Source: https://components.espressif.com/components/espressif/dl_fft/versions/0.7.0
+- SPDX conclusion: `MIT`
+- Copyright/notice: https://components.espressif.com/components/espressif/dl_fft/versions/0.7.0/license
+
+## `espressif/usb_host_uvc`
+
+- ESP-Mosaico version: `2.5.1`
+- Source: https://components.espressif.com/components/espressif/usb_host_uvc/versions/2.5.1
+- SPDX conclusion: `Apache-2.0`
+- Copyright/notice: https://components.espressif.com/components/espressif/usb_host_uvc/versions/2.5.1/license
+
+## `espressif/hand_detect`
+
+- ESP-Mosaico version: `0.2.0`
+- Source: https://components.espressif.com/components/espressif/hand_detect/versions/0.2.0
+- SPDX conclusion: `MIT`
+- Copyright/notice: https://components.espressif.com/components/espressif/hand_detect/versions/0.2.0/license
+
+## `espressif/hand_gesture_recognition`
+
+- ESP-Mosaico version: `0.2.0`
+- Source: https://components.espressif.com/components/espressif/hand_gesture_recognition/versions/0.2.0
+- SPDX conclusion: `MIT`
+- Copyright/notice: https://components.espressif.com/components/espressif/hand_gesture_recognition/versions/0.2.0/license
