@@ -20,6 +20,16 @@ struct GestureEvent {
 /** Worker-owned camera/model pipeline. The application owns context and event consumption. */
 class GestureInput {
 public:
+    /** Receives each model input image and its observation on the vision worker. */
+    using PreviewSink = void (*)(void* context, const uint8_t* rgb, unsigned width, unsigned height,
+                                 const HandObservation& hand);
+
+    /** Must be called before begin(); only used with CONFIG_MOSAICO_GESTURE_DEBUG_PREVIEW. */
+    void set_preview_sink(PreviewSink sink, void* context)
+    {
+        preview_sink_ = sink;
+        preview_context_ = context;
+    }
     bool begin();
     void configure(bool enabled, bool allowed, bool asleep, Page page, ScreenRotation rotation);
     /** Cancels pending recognition after another input is accepted. Main task only. */
@@ -35,6 +45,8 @@ private:
     std::atomic<uint32_t> context_{0};
     std::atomic<GestureStatus> status_{GestureStatus::Off};
     std::atomic<uint8_t> progress_{0};
+    PreviewSink preview_sink_ = nullptr;
+    void* preview_context_ = nullptr;
 };
 
 }  // namespace usage_panel::mosaico

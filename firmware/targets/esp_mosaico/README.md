@@ -40,7 +40,7 @@ eim run "idf.py -C firmware/targets/esp_mosaico build" v6.1
 
 后续开发入口：[参考仓库、固定版本与代码导航](CAMERA_UPSTREAM.md#repository-reference-map)；[交互设计与实施记录](../../../docs/design/mosaico-gesture-input.md)。
 
-左槽 OV3640 CameraBoard 可选开启本地手势：左挥下一页、右挥上一页，时钟中首挥只恢复原页；👌 OK 稳定保持约 500 ms 进入时钟。设置中的 `HAND GESTURES` 默认关闭，需保存后启用。图像仅在本机处理。
+左槽 CameraBoard（OV3640 或 SC101IOT，自动识别）可选开启本地手势：左挥或上挥上一页、右挥或下挥下一页，时钟中首挥只恢复原页；👌 OK 稳定保持约 500 ms 进入时钟。设置中的 `CAMERA` 开关默认关闭，切换后需 `SAVE`；开关打开时顶栏显示摄像头标识。Type-C 口是 USB OTG，只在 ROM 下载模式下枚举，应用日志只从 UART0（右侧排针 H1 的 15 脚 TX0 / GPIO58，或底板背面调试焊盘 TX）输出。图像仅在本机处理。
 
 模型与代码内嵌同一应用，首次从旧 4 MiB 分区升级必须有线迁移。保留设置时使用分段烧录，不能用填充后的完整镜像替代。依赖来源见 [CAMERA_UPSTREAM.md](CAMERA_UPSTREAM.md)，安装、恢复与实机验证见[手势验收指南](../../../docs/validation/mosaico-gestures.md)。当前仅通过软件测试和构建；相机方向、识别率、性能、功耗和提示布局仍待设备验收。
 
@@ -80,3 +80,5 @@ eim run "idf.py -C firmware/targets/esp_mosaico/test_apps/logic build" v6.1
 
 1. 实机验证触控方向、AI 键，以及 OTA 断电恢复与回滚；
 2. 按实测结果校准 BQ27220 的外部供电判据。
+
+点击顶部相机图标可显示或隐藏实时预览；预览默认隐藏，重启后恢复隐藏。关闭预览不影响手势识别，摄像头采集仍由设置页 CAMERA 开关控制。时钟、设置及受保护界面不显示预览。

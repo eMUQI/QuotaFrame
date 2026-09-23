@@ -27,6 +27,9 @@ constexpr uint32_t kAsleep = 4;
 constexpr uint32_t kContextMask = 0x7f;
 constexpr uint32_t kGeneration = 0x80;
 constexpr char TAG[] = "gesture_input";
+// Transient start-up failures are retried as in esp-vision's camera init.
+constexpr unsigned kCameraStartAttempts = 3;
+constexpr uint32_t kCameraRetryDelayMs = 100;
 }
 
 bool GestureInput::begin()
@@ -89,9 +92,21 @@ void GestureInput::run()
     bool fatal_cleanup = false;
     unsigned capture_failures = 0;
     uint64_t next_report = 0;
+    uint64_t next_detection_log = 0;
     unsigned measured_frames = 0;
     uint64_t measured_us = 0;
+    uint64_t capture_us = 0, detect_us = 0, classify_us = 0, feedback_us = 0;
     unsigned warmup = 0;
+    // Start-up failures scroll past during boot, so the reason is repeated
+    // after cleanup until the switch is turned off.
+    const char* failure = nullptr;
+    int failure_code = 0;
+    uint64_t next_failure_log = 0;
+    const auto record = [&](const char* step, int code) {
+        failure = step ? step : "unknown";
+        failure_code = code;
+        next_failure_log = 0;
+    };
 
     for (;;) {
         const uint32_t context = context_.load();
@@ -106,6 +121,7 @@ void GestureInput::run()
             if (active || rgb) {
                 if (!camera.stop()) {
                     ESP_LOGE(TAG, "camera cleanup failed; recognition disabled until reboot");
+                    record(camera.failure(), camera.failure_code());
                     fatal_cleanup = true;
                     fault = true;
                 }
@@ -116,7 +132,12 @@ void GestureInput::run()
                 active = false;
             }
             progress_ = 0;
-            if (!enabled && !fatal_cleanup) { fault = false; status_ = GestureStatus::Off; }
+            const uint64_t now_ms = esp_timer_get_time() / 1000;
+            if (fault && failure && now_ms >= next_failure_log) {
+                ESP_LOGW(TAG, "capture unavailable: %s (code %d)", failure, failure_code);
+                next_failure_log = now_ms + 5000;
+            }
+            if (!enabled && !fatal_cleanup) { fault = false; failure = nullptr; status_ = GestureStatus::Off; }
             else if (fatal_cleanup) status_ = GestureStatus::Fault;
             else if (!fault) status_ = GestureStatus::Paused;
             vTaskDelay(pdMS_TO_TICKS(100));
@@ -125,23 +146,49 @@ void GestureInput::run()
         if (!active) {
             status_ = GestureStatus::Starting;
             // ESP-DL allocates model arenas during construction. Keep a conservative
-            // margin for both arenas, camera buffers and the concurrently running UI.
-            if (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) < 6 * 1024 * 1024 ||
+            // margin for both arenas, two 1280x720 UYVY buffers and the concurrently running UI.
+            if (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) < 9 * 1024 * 1024 ||
                 heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT) < 96 * 1024) {
+                // Code is the largest free PSRAM block in KiB.
+                record("memory precheck",
+                       int(heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
                 status_ = GestureStatus::MemoryError;
                 fault = true;
                 continue;
             }
             rgb = static_cast<uint8_t*>(heap_caps_malloc(kGestureImageBytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
-            if (!rgb) { status_ = GestureStatus::MemoryError; fault = true; continue; }
-            if (!camera.start()) {
-                status_ = GestureStatus::CameraError;
+            if (!rgb) {
+                record("frame buffer allocation", int(kGestureImageBytes));
+                status_ = GestureStatus::MemoryError;
+                fault = true;
+                continue;
+            }
+            bool started = false;
+            for (unsigned attempt = 1; attempt <= kCameraStartAttempts; ++attempt) {
+                if (camera.start()) { started = true; break; }
+                record(camera.failure(), camera.failure_code());
+                ESP_LOGW(TAG, "camera start %u/%u failed: %s (code %d)", attempt,
+                         kCameraStartAttempts, failure, failure_code);
+                if (!camera.stop()) {
+                    record(camera.failure(), camera.failure_code());
+                    fatal_cleanup = true;
+                    break;
+                }
+                if (attempt < kCameraStartAttempts) vTaskDelay(pdMS_TO_TICKS(kCameraRetryDelayMs));
+            }
+            if (!started) {
+                status_ = fatal_cleanup ? GestureStatus::Fault : GestureStatus::CameraError;
                 fault = true;
                 continue;
             }
             detector.reset(new (std::nothrow) HandDetect(HandDetect::ESPDET_PICO_224_224_HAND, false));
             recognizer.reset(new (std::nothrow) HandGestureRecognizer());
-            if (!detector || !recognizer) { status_ = GestureStatus::MemoryError; fault = true; continue; }
+            if (!detector || !recognizer) {
+                record("model allocation", 0);
+                status_ = GestureStatus::MemoryError;
+                fault = true;
+                continue;
+            }
             detector->set_score_thr(0.5F);
             tracker.reset();
             active = true;
@@ -163,18 +210,25 @@ void GestureInput::run()
         if (!camera.read_rgb(rgb, rotation, mirror)) {
             tracker.reset();
             progress_ = 0;
-            if (++capture_failures >= 3) { fault = true; status_ = GestureStatus::CameraError; }
+            if (++capture_failures >= 3) {
+                record(camera.failure(), camera.failure_code());
+                fault = true;
+                status_ = GestureStatus::CameraError;
+            }
             vTaskDelay(pdMS_TO_TICKS(20));
             continue;
         }
         capture_failures = 0;
         if (warmup) { --warmup; continue; }
         if (context != context_.load()) continue;
+        const auto image_size = camera.image_size(rotation);
         dl::image::img_t image{rgb,
-            static_cast<uint16_t>(rotation & 1 ? kGestureImageHeight : kGestureImageWidth),
-            static_cast<uint16_t>(rotation & 1 ? kGestureImageWidth : kGestureImageHeight),
+            static_cast<uint16_t>(image_size.width),
+            static_cast<uint16_t>(image_size.height),
             dl::image::DL_IMAGE_PIX_TYPE_RGB888};
+        const uint64_t captured_us = esp_timer_get_time();
         const auto& hands = detector->run(image);
+        const uint64_t detected_us = esp_timer_get_time();
         HandObservation observation{};
         observation.count = hands.size();
         if (hands.size() == 1) {
@@ -200,10 +254,27 @@ void GestureInput::run()
         if (context != context_.load()) continue;
         const GestureAction action = tracker.update(observation, finished_us / 1000);
         progress_ = tracker.hold_progress();
+#if CONFIG_MOSAICO_GESTURE_DEBUG_PREVIEW
+        if (preview_sink_) preview_sink_(preview_context_, rgb, image.width, image.height, observation);
+#endif
+        // Calibration aid: normalized observations in percent, at most once per second.
+        if (observation.count && finished_us / 1000 >= next_detection_log) {
+            ESP_LOGI(TAG, "hand count=%u score=%d center=(%d,%d) size=(%d,%d) ok=%d",
+                     observation.count, int(observation.score * 100), int(observation.x * 100),
+                     int(observation.y * 100), int(observation.width * 100),
+                     int(observation.height * 100), int(observation.ok_score * 100));
+            next_detection_log = finished_us / 1000 + 1000;
+        }
         if (action != GestureAction::None) {
+            ESP_LOGI(TAG, "tracker action=%u", unsigned(action));
             const GestureEvent event{action, context, finished_us / 1000};
             xQueueSend(queue_, &event, 0);
         }
+        const uint64_t feedback_done_us = esp_timer_get_time();
+        capture_us += captured_us - started_us;
+        detect_us += detected_us - captured_us;
+        classify_us += finished_us - detected_us;
+        feedback_us += feedback_done_us - finished_us;
         measured_us += finished_us - started_us;
         ++measured_frames;
         if (finished_us / 1000 >= next_report) {
@@ -211,6 +282,12 @@ void GestureInput::run()
                 measured_frames, static_cast<unsigned long long>(measured_us / measured_frames / 1000),
                 unsigned(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)),
                 unsigned(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)), unsigned(uxTaskGetStackHighWaterMark(nullptr)));
+            ESP_LOGI(TAG, "mean_stage_us capture_convert=%llu detect=%llu classify=%llu feedback=%llu",
+                static_cast<unsigned long long>(capture_us / measured_frames),
+                static_cast<unsigned long long>(detect_us / measured_frames),
+                static_cast<unsigned long long>(classify_us / measured_frames),
+                static_cast<unsigned long long>(feedback_us / measured_frames));
+            capture_us = detect_us = classify_us = feedback_us = 0;
             measured_us = 0;
             measured_frames = 0;
             next_report = finished_us / 1000 + 10000;

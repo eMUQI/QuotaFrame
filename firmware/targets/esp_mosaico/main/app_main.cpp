@@ -5,7 +5,7 @@
 #include "display_ui.hpp"
 #include "local_clock.hpp"
 #include "gesture_input.hpp"
-#include "panel_settings.hpp"
+#include "camera_setting.hpp"
 #include "usage_panel_state/panel_presentation.hpp"
 #include "power_monitor.hpp"
 #include "usage_panel_state/render_schedule.hpp"
@@ -194,13 +194,24 @@ extern "C" void app_main(void)
     }
     const bool ai_button_ready = init_ai_button();
 
-    PanelSettings saved_settings = load_panel_settings({
+    DisplaySettings saved_settings = load_display_settings({
         CONFIG_MOSAICO_USAGE_PANEL_DISPLAY_BRIGHTNESS_PERCENT,
         CONFIG_MOSAICO_USAGE_PANEL_SCREENSAVER_TIMEOUT_SECONDS});
-    PanelSettings settings = saved_settings;
+    DisplaySettings settings = saved_settings;
     bool settings_open = false;
+    // camera_enabled is persisted and drives capture; camera_setting is the
+    // settings-page preview, committed by SAVE together with the display values.
+    bool camera_enabled = load_camera_enabled();
+    bool camera_setting = camera_enabled;
+#if CONFIG_MOSAICO_GESTURE_DEBUG_PREVIEW
+    gestures.set_preview_sink(
+        [](void* context, const uint8_t* rgb, unsigned width, unsigned height, const HandObservation& hand) {
+            static_cast<DisplayUi*>(context)->show_camera_preview(rgb, width, height, hand);
+        },
+        &ui);
+#endif
     if (!gestures.begin()) ESP_LOGW(TAG, "gesture worker unavailable");
-    ui.apply_settings(settings, false);
+    ui.apply_settings(settings, camera_setting, false);
 
     ScreenRotation desired_rotation = initial_rotation;
     // ui.begin() brought the panel up at kFixedRotation. Anything the startup
@@ -295,22 +306,21 @@ extern "C" void app_main(void)
         const bool settings_blocked = ble_link.has_passkey || ota_view.phase != OtaPhase::Idle;
         if (settings_open && settings_blocked) {
             settings = saved_settings;
+            camera_setting = camera_enabled;
             settings_open = false;
-            ui.apply_settings(settings, false);
+            ui.apply_settings(settings, camera_setting, false);
             screensaver.reset(now_ms, page);
             dirty = true;
         }
-        if (ui.take_gesture_toggle() && settings_open && !settings_blocked) {
-            settings.gestures = !settings.gestures;
-            ui.apply_settings(settings, true, false, settings_differ(settings, saved_settings));
-            dirty = true;
-        }
-        if (action != SettingsAction::None && !settings_blocked) {
+        const bool camera_toggled = ui.take_camera_toggle();
+        if ((action != SettingsAction::None || camera_toggled) && !settings_blocked) {
             bool save_error = false;
-            const PanelSettings before = settings;
+            const DisplaySettings before = settings;
+            const bool camera_before = camera_setting;
             const bool was_open = settings_open;
             if (action == SettingsAction::Open) settings_open = true;
             else if (settings_open) {
+                if (camera_toggled) camera_setting = !camera_setting;
                 if (action == SettingsAction::Dimmer)
                     settings.brightness = settings.brightness <= 10 ? 1 : settings.brightness - 10;
                 else if (action == SettingsAction::Brighter)
@@ -318,18 +328,26 @@ extern "C" void app_main(void)
                 else if (action >= SettingsAction::TimeoutOff && action <= SettingsAction::Timeout30)
                     select_clock_timeout(action, settings.clock_timeout_seconds);
                 else if (action == SettingsAction::Save) {
-                    const esp_err_t error = save_panel_settings(settings);
+                    esp_err_t error = save_display_settings(settings);
+                    if (error == ESP_OK) error = save_camera_enabled(camera_setting);
                     save_error = error != ESP_OK;
-                    if (!save_error) { saved_settings = settings; settings_open = false; }
-                    else ESP_LOGW(TAG, "display settings save failed: %s", esp_err_to_name(error));
+                    if (!save_error) {
+                        saved_settings = settings;
+                        camera_enabled = camera_setting;
+                        settings_open = false;
+                    } else ESP_LOGW(TAG, "settings save failed: %s", esp_err_to_name(error));
                 } else if (action == SettingsAction::Cancel) {
                     settings = saved_settings;
+                    camera_setting = camera_enabled;
                     settings_open = false;
                 }
             }
-            if (!ui.apply_settings(settings, settings_open, save_error,
-                    settings_differ(settings, saved_settings))) {
+            if (!ui.apply_settings(settings, camera_setting, settings_open, save_error,
+                    settings.brightness != saved_settings.brightness ||
+                    settings.clock_timeout_seconds != saved_settings.clock_timeout_seconds ||
+                    camera_setting != camera_enabled)) {
                 settings = before;
+                camera_setting = camera_before;
                 settings_open = was_open;
                 ESP_LOGW(TAG, "display settings preview failed");
             }
@@ -361,15 +379,17 @@ extern "C" void app_main(void)
                     ui.request_page(page);
                     screensaver.reset(now_ms, page);
                     settings = saved_settings;
+                    camera_setting = camera_enabled;
                     settings_open = false;
-                    ui.apply_settings(settings, false);
+                    ui.apply_settings(settings, camera_setting, false);
                     status_page.store(page, std::memory_order_relaxed);
                 }
             } else if (event.type == AppEventType::ScreenToggle) {
                 gestures.invalidate();
                 settings = saved_settings;
+                camera_setting = camera_enabled;
                 settings_open = false;
-                ui.apply_settings(settings, false);
+                ui.apply_settings(settings, camera_setting, false);
                 const bool was_asleep = screensaver.view(now_ms).active;
                 screensaver.note_remote_toggle(now_ms, page);
                 if (was_asleep) {
@@ -472,7 +492,7 @@ extern "C" void app_main(void)
             ota_view.phase != OtaPhase::Idle || show_ota_error || settings_open);
         const bool gesture_allowed = !settings_open && !ble_link.has_passkey &&
             ota_view.phase == OtaPhase::Idle && !show_ota_error && desired_rotation == applied_rotation;
-        gestures.configure(saved_settings.gestures, gesture_allowed,
+        gestures.configure(camera_enabled, gesture_allowed,
             screensaver.view(now_ms).active, page, applied_rotation);
         GestureEvent gesture{};
         if (gestures.take(gesture, esp_timer_get_time() / 1000)) {
@@ -531,13 +551,15 @@ extern "C" void app_main(void)
         }
         const auto gesture_status = gestures.status();
         const auto gesture_progress = gestures.progress();
-        const bool gesture_feedback_visible = saved_settings.gestures && gesture_allowed && !screensaver_view.active;
+        const bool gesture_feedback_visible = camera_enabled && gesture_allowed && !screensaver_view.active;
+        static bool shown_camera_enabled = false;
         static GestureStatus shown_gesture_status = GestureStatus::Off;
         static uint8_t shown_gesture_progress = 0;
         static bool shown_gesture_feedback = false;
-        if (shown_gesture_status != gesture_status || shown_gesture_progress != gesture_progress ||
-            shown_gesture_feedback != gesture_feedback_visible) {
-            ui.show_gesture_status(gesture_status, gesture_progress, gesture_feedback_visible);
+        if ((shown_camera_enabled != camera_enabled || shown_gesture_status != gesture_status ||
+             shown_gesture_progress != gesture_progress || shown_gesture_feedback != gesture_feedback_visible) &&
+            ui.show_camera_state(camera_enabled, gesture_status, gesture_progress, gesture_feedback_visible)) {
+            shown_camera_enabled = camera_enabled;
             shown_gesture_status = gesture_status;
             shown_gesture_progress = gesture_progress;
             shown_gesture_feedback = gesture_feedback_visible;

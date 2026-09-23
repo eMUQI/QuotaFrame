@@ -20,7 +20,7 @@ commits below and [dependencies.lock](dependencies.lock), not the latest branch.
 - Read the [interaction design and implementation record](../../../docs/design/mosaico-gesture-input.md) for swipe direction, wake-only behavior, OK hold and protected states.
 - Start in [gesture_camera.cpp](main/gesture_camera.cpp) for capture/pin ownership, [gesture_image.cpp](main/gesture_image.cpp) for image orientation, [gesture_tracker.cpp](main/gesture_tracker.cpp) for temporal recognition, and [gesture_input.cpp](main/gesture_input.cpp) for the worker lifecycle. [app_main.cpp](main/app_main.cpp) owns action routing and UI state.
 - Follow the [installation and hardware acceptance guide](../../../docs/validation/mosaico-gestures.md). Software builds/tests passed at the initial implementation; camera orientation, actual recognition, UI layout, resource use and power remain hardware acceptance items.
-- Preserve the 7 MiB dual-slot migration contract, default-off setting, local-only image processing and existing BSP display fixes. Recheck the current tree and lockfile before changing dependencies; do not edit generated `managed_components` as the source of truth.
+- Preserve the 7 MiB dual-slot layout, default-off capture setting, local-only image processing and existing BSP display fixes. Recheck the current tree and lockfile before changing dependencies; do not edit generated `managed_components` as the source of truth.
 
 ## Locked component versions
 
@@ -29,7 +29,7 @@ The target uses registry components pinned by `dependencies.lock`:
 | Component | Version | Role |
 | --- | --- | --- |
 | espressif/esp_video | 2.5.0 | DVP/V4L2 capture and buffer lifetime |
-| espressif/esp_cam_sensor | 2.6.0 | OV3640 sensor configuration |
+| espressif/esp_cam_sensor | 2.6.0 | OV3640 and SC101IOT sensor configuration |
 | espressif/esp-dl | 3.3.11 | S31 inference and preprocessing |
 | espressif/hand_detect | 0.2.0 | ESPDet-Pico 224×224 hand detection |
 | espressif/hand_gesture_recognition | 0.2.0 | MobileNetV2 128×128 classification; `ok` command |
@@ -54,11 +54,38 @@ Serial/JTAG. GPIO34 is the active-low illuminator and remains high. UART logging
 is retained. Start/stop and frame ownership belong to the vision worker; the
 application task exchanges context and bounded events only.
 
-Camera mounting rotation and mirror defaults remain subject to physical
-calibration. `CONFIG_MOSAICO_CAMERA_ROTATION` applies the mounting correction;
-the inverse of the actual applied display rotation follows it. A context change
-discards any unfinished gesture. The default correction is 180 degrees, with
-horizontal mirroring enabled.
+Start-up timing follows `boards/ESP32_S31_MOSAICO/camera.c` in
+[esp-vision](https://github.com/espressif/esp-vision) and `mosaico_module_camera`
+in [esp-mosaico-bsp](https://github.com/esp-mosaico/esp-mosaico-bsp): 20 ms of
+stabilization after the slot is claimed, a 500 ms frame timeout, up to three
+start attempts 100 ms apart, and one discarded frame per buffer after stream
+start. Frames flagged with `V4L2_BUF_FLAG_ERROR` are requeued unconverted.
+SCCB runs at 100 kHz on the BSP subboard I2C1 bus, matching
+`mosaico_module_camera`; that bus has only internal pull-ups. CameraBoards are
+fitted with either an OV3640 (SCCB 0x3c) or an SC101IOT (0x68); both are built
+with auto-detection, as in `mosaico_module_camera`. OV3640 uses 640x480 UYVY;
+SC101IOT uses its full 1280x720 UYVY frame at the driver's nominal 15 fps.
+The SC101IOT VGA register table crops the center of the 1280x720 array, so
+720p retains more of the scene for close-range gestures. Format negotiation
+follows `mosaico_module_camera`: read the configured sensor size with
+`VIDIOC_G_FMT`, request UYVY with `VIDIOC_S_FMT`, and verify the returned size.
+No sensor register table or board timing is modified.
+
+The complete frame is fitted within 320x240 while preserving its aspect ratio:
+SC101IOT produces 320x180 RGB888 before rotation, and OV3640 produces 320x240.
+The model and debug preview receive the actual rotated dimensions. The two
+720p UYVY capture buffers require about 3.52 MiB; the startup precheck requires
+at least a 9 MiB contiguous free PSRAM block for capture, model arenas and UI load.
+The nominal sensor frame rate and close-range recognition require hardware
+verification on the CameraBoard's external oscillator.
+
+`CONFIG_MOSAICO_CAMERA_ROTATION` applies the mounting correction after the
+horizontal mirror; the inverse of the actual applied display rotation follows
+it. A context change discards any unfinished gesture. Both reference pipelines
+rotate the raw frame 90 degrees counter-clockwise (`PPA_SRM_ROTATION_ANGLE_90`)
+without mirroring to make it model-upright. Mirroring first keeps swipe
+directions in the user's view, so the equivalent default is 90 degrees
+clockwise with mirroring enabled.
 
 Package copyright and license sources are recorded in
 [THIRD_PARTY_LICENSES.md](../../../THIRD_PARTY_LICENSES.md).

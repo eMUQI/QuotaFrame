@@ -4,7 +4,7 @@
 
 namespace usage_panel::mosaico {
 
-enum class GestureAction : uint8_t { None, SwipeLeft, SwipeRight, EnterClock };
+enum class GestureAction : uint8_t { None, SwipeLeft, SwipeRight, EnterClock, SwipeUp, SwipeDown };
 enum class GestureEffect : uint8_t { None, Wake, Previous, Next, Clock };
 
 /** Applies application input policy before any page or screensaver mutation. */
@@ -45,6 +45,8 @@ private:
     float start_x_ = 0;
     float start_y_ = 0;
     float path_x_ = 0;
+    float path_y_ = 0;
+    float max_dx_ = 0;
     float max_dy_ = 0;
     float ok_x_ = 0;
     float ok_y_ = 0;
