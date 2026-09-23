@@ -38,6 +38,8 @@ eim run "idf.py -C firmware/targets/esp_mosaico build" v6.1
 
 ### 本地手势输入
 
+后续开发入口：[参考仓库、固定版本与代码导航](CAMERA_UPSTREAM.md#repository-reference-map)；[交互设计与实施记录](../../../docs/design/mosaico-gesture-input.md)。
+
 左槽 OV3640 CameraBoard 可选开启本地手势：左挥下一页、右挥上一页，时钟中首挥只恢复原页；👌 OK 稳定保持约 500 ms 进入时钟。设置中的 `HAND GESTURES` 默认关闭，需保存后启用。图像仅在本机处理。
 
 模型与代码内嵌同一应用，首次从旧 4 MiB 分区升级必须有线迁移。保留设置时使用分段烧录，不能用填充后的完整镜像替代。依赖来源见 [CAMERA_UPSTREAM.md](CAMERA_UPSTREAM.md)，安装、恢复与实机验证见[手势验收指南](../../../docs/validation/mosaico-gestures.md)。当前仅通过软件测试和构建；相机方向、识别率、性能、功耗和提示布局仍待设备验收。

@@ -166,6 +166,8 @@ eim run "idf.py -C firmware/test_apps/panel_state build" v6.1
 
 ## 参考来源
 
+后续开发优先阅读[摄像头与手势仓库参考索引](../../firmware/targets/esp_mosaico/CAMERA_UPSTREAM.md)：集中记录官方仓库、项目 fork、固定提交/组件版本、各仓库用途及本地代码入口。下列默认分支链接用于查阅，不代表本实现的锁定版本。
+
 - [分享报告及交互修订](https://chatgpt.com/share/6ab29265-faa8-83e8-8e32-fa2bb8b8989b)；另一份为本次任务内粘贴的补充报告。
 - [ESP-DL Model Zoo](https://github.com/espressif/esp-dl/blob/master/models/README.md)
 - [HandDetect CMake](https://github.com/espressif/esp-dl/blob/master/models/hand_detect/CMakeLists.txt) 与 [模型说明](https://github.com/espressif/esp-dl/blob/master/models/hand_detect/README.md)
