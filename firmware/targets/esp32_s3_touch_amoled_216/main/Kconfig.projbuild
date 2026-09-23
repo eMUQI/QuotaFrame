@@ -1,0 +1,133 @@
+menu "Waveshare Usage Panel"
+
+menu "Display"
+
+config WS_USAGE_PANEL_DISPLAY_BRIGHTNESS_PERCENT
+    int "Display brightness (percent)"
+    range 1 100
+    default 75
+    help
+        Panel brightness applied once at startup through the BSP brightness
+        API. The screensaver does not dim the panel beyond this value.
+
+config WS_USAGE_PANEL_AUTO_ROTATION
+    bool "Auto-rotate the panel with gravity"
+    default y
+    help
+        Follow the QMI8658 accelerometer and rotate display and touch mapping
+        together. When disabled, the panel keeps the fixed orientation chosen
+        below and ignores gravity entirely.
+
+choice WS_USAGE_PANEL_FIXED_ROTATION
+    prompt "Fixed screen orientation"
+    depends on !WS_USAGE_PANEL_AUTO_ROTATION
+    default WS_USAGE_PANEL_FIXED_ROTATION_0
+    help
+        Orientation used whenever auto rotation is disabled. The touch
+        transform follows this choice so coordinates stay aligned.
+
+config WS_USAGE_PANEL_FIXED_ROTATION_0
+    bool "0 degrees"
+
+config WS_USAGE_PANEL_FIXED_ROTATION_90
+    bool "90 degrees clockwise"
+
+config WS_USAGE_PANEL_FIXED_ROTATION_180
+    bool "180 degrees"
+
+config WS_USAGE_PANEL_FIXED_ROTATION_270
+    bool "270 degrees clockwise"
+
+endchoice
+
+endmenu
+
+menu "Screensaver & Wake"
+
+config WS_USAGE_PANEL_SCREENSAVER_TIMEOUT_SECONDS
+    int "Screensaver idle timeout (seconds)"
+    range 10 86400
+    default 300
+    help
+        Seconds without touch, wake or connection activity before the clock
+        screensaver starts. Pairing and OTA always keep the panel awake.
+
+config WS_USAGE_PANEL_SHAKE_WAKE
+    bool "Wake from the screensaver by shaking"
+    default y
+    help
+        Let repeated acceleration excursions wake the panel while the clock
+        screensaver is active.
+
+config WS_USAGE_PANEL_SHAKE_WAKE_THRESHOLD_CG
+    int "Shake wake excursion threshold (centi-g)"
+    range 5 100
+    default 25
+    depends on WS_USAGE_PANEL_SHAKE_WAKE
+    help
+        Acceleration magnitude must differ from 1 g by more than this many
+        hundredths of a g (default 0.25 g) for a shake sample to count toward
+        waking the screensaver.
+
+config WS_USAGE_PANEL_TILT_WAKE
+    bool "Wake from the screensaver by tilting"
+    default y
+    help
+        Let a sustained reorientation of the gravity direction wake the panel
+        while the clock screensaver is active.
+
+config WS_USAGE_PANEL_TILT_WAKE_DEGREES
+    int "Tilt wake threshold (degrees)"
+    range 5 60
+    default 25
+    depends on WS_USAGE_PANEL_TILT_WAKE
+    help
+        A sustained rotation of the gravity direction by more than this angle
+        wakes the screensaver, so picking the panel up exits the clock while
+        ordinary desk vibration does not.
+
+endmenu
+
+menu "Bluetooth"
+
+config WS_USAGE_PANEL_BLE_ADVERTISING_PREFIX
+    string "BLE advertising name prefix"
+    default "QF-WS-S3-A216-"
+    help
+        Prefix of the BLE advertising name. The full name is this prefix plus
+        the last two Bluetooth MAC bytes as four uppercase hex digits, for
+        example QF-WS-S3-A216-A37F, so multiple panels stay distinguishable
+        without manual coordination. Keep the prefix within 15 characters so
+        prefix plus suffix fits the advertising name buffer.
+
+        The prefix must start with QF- and contain at most 15 printable ASCII
+        characters without spaces. Discovery requires both this public
+        namespace and NUS; no official target registry entry is needed.
+        The four-digit suffix may collide and is not a unique identity.
+        Owned devices reconnect by Bluetooth address; status supplies their
+        display names, capabilities and optional OTA project/target metadata.
+
+endmenu
+
+menu "Diagnostics"
+
+config WS_USAGE_PANEL_PERFORMANCE_PROBE
+    bool "Record display DMA and periodic resource performance samples"
+    default n
+    select FREERTOS_GENERATE_RUN_TIME_STATS
+    select FREERTOS_VTASKLIST_INCLUDE_COREID
+    help
+        Record LVGL refresh and final DMA completion timestamps, internal/DMA
+        memory, task runtime counters, and stack headroom. Diagnostic builds
+        use the ESP Timer runtime clock and emit serial samples only.
+
+config WS_USAGE_PANEL_MEMORY_PROBE
+    bool "Run one-shot LVGL memory and refresh probe"
+    default n
+    help
+        Create and remove representative hidden UI objects, then time forced
+        page refreshes. Enable only in a separate diagnostic build.
+
+endmenu
+
+endmenu

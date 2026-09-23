@@ -1,0 +1,49 @@
+[
+  {
+    "provider": "codex",
+    "source": "openai-web",
+    "usage": {
+      "primary": {
+        "used_percent": 35.5,
+        "window_minutes": 300,
+        "resets_at": "2026-07-30T11:00:00Z",
+        "reset_description": "in 3 hours",
+        "is_informational": false
+      },
+      "secondary": {
+        "used_percent": 61.5,
+        "window_minutes": 10080,
+        "resets_at": "2026-08-03T23:00:00Z",
+        "is_informational": false
+      },
+      "updated_at": "2026-07-30T07:59:50Z",
+      "account_email": "must-not-leave@example.com",
+      "account_organization": "private-org",
+      "login_method": "private-plan"
+    },
+    "cost": {
+      "used": 12.34,
+      "currency_code": "USD"
+    }
+  },
+  {
+    "provider": "claude",
+    "source": "claude-web",
+    "usage": {
+      "primary": {
+        "used_percent": 22.4,
+        "window_minutes": 300,
+        "resets_at": "2026-07-30T10:00:00+00:00",
+        "is_informational": false
+      },
+      "secondary": {
+        "used_percent": 48.2,
+        "window_minutes": 10080,
+        "resets_at": "2026-08-02T08:00:00Z",
+        "is_informational": false
+      },
+      "updated_at": "2026-07-30T07:59:50Z",
+      "account_email": "also-private@example.com"
+    }
+  }
+]

@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quotaframe-bridge"
+dynamic = ["version"]
+description = "Windows and macOS BLE bridge for QuotaFrame panels"
+requires-python = ">=3.11"
+dependencies = [
+    "bleak>=1.0,<4",
+    # Native update notifications are not a Bleak dependency, so declare the
+    # framework explicitly for the frozen macOS application.
+    "pyobjc-framework-UserNotifications>=10.3; sys_platform == 'darwin'",
+    # The tray shell is Windows-only; keep its dependencies off other hosts,
+    # where pystray would pull in an X11 or AppKit backend nobody uses.
+    "pystray>=0.19; sys_platform == 'win32'",
+    "pillow>=10; sys_platform == 'win32'",
+]
+
+[project.optional-dependencies]
+build = ["pyinstaller>=6.21"]
+
+[project.scripts]
+quotaframe-bridge = "quotaframe_bridge.cli.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+version = {attr = "quotaframe_bridge.__version__"}

@@ -1,0 +1,112 @@
+menu "ESP-Mosaico Usage Panel"
+
+menu "Display"
+
+config MOSAICO_USAGE_PANEL_DISPLAY_BRIGHTNESS_PERCENT
+    int "Display brightness (percent)"
+    range 1 100
+    default 75
+    help
+        Panel brightness applied once at startup through the BSP brightness
+        API. The screensaver does not dim the panel beyond this value.
+
+config MOSAICO_USAGE_PANEL_AUTO_ROTATION
+    bool "Auto-rotate the panel with gravity"
+    default y
+    help
+        Follow the BMI270 accelerometer and rotate display and touch mapping
+        together. When disabled, the panel keeps the fixed orientation chosen
+        below and ignores gravity entirely.
+
+choice MOSAICO_USAGE_PANEL_FIXED_ROTATION
+    prompt "Fixed screen orientation"
+    depends on !MOSAICO_USAGE_PANEL_AUTO_ROTATION
+    default MOSAICO_USAGE_PANEL_FIXED_ROTATION_0
+    help
+        Orientation used whenever auto rotation is disabled. The touch
+        transform follows this choice so coordinates stay aligned.
+
+config MOSAICO_USAGE_PANEL_FIXED_ROTATION_0
+    bool "0 degrees"
+
+config MOSAICO_USAGE_PANEL_FIXED_ROTATION_90
+    bool "90 degrees clockwise"
+
+config MOSAICO_USAGE_PANEL_FIXED_ROTATION_180
+    bool "180 degrees"
+
+config MOSAICO_USAGE_PANEL_FIXED_ROTATION_270
+    bool "270 degrees clockwise"
+
+endchoice
+
+endmenu
+
+menu "Screensaver & Wake"
+
+config MOSAICO_USAGE_PANEL_SCREENSAVER_TIMEOUT_SECONDS
+    int "Screensaver idle timeout (seconds)"
+    range 10 86400
+    default 300
+    help
+        Seconds without touch, wake or connection activity before the clock
+        screensaver starts. Pairing and OTA always keep the panel awake.
+
+config MOSAICO_USAGE_PANEL_SHAKE_WAKE
+    bool "Wake from the screensaver by shaking"
+    default y
+    help
+        Let repeated acceleration excursions wake the panel while the clock
+        screensaver is active.
+
+config MOSAICO_USAGE_PANEL_SHAKE_WAKE_THRESHOLD_CG
+    int "Shake wake excursion threshold (centi-g)"
+    range 5 100
+    default 25
+    depends on MOSAICO_USAGE_PANEL_SHAKE_WAKE
+    help
+        Acceleration magnitude must differ from 1 g by more than this many
+        hundredths of a g (default 0.25 g) for a shake sample to count toward
+        waking the screensaver.
+
+config MOSAICO_USAGE_PANEL_TILT_WAKE
+    bool "Wake from the screensaver by tilting"
+    default y
+    help
+        Let a sustained reorientation of the gravity direction wake the panel
+        while the clock screensaver is active.
+
+config MOSAICO_USAGE_PANEL_TILT_WAKE_DEGREES
+    int "Tilt wake threshold (degrees)"
+    range 5 60
+    default 25
+    depends on MOSAICO_USAGE_PANEL_TILT_WAKE
+    help
+        A sustained rotation of the gravity direction by more than this angle
+        wakes the screensaver, so picking the panel up exits the clock while
+        ordinary desk vibration does not.
+
+endmenu
+
+menu "Bluetooth"
+
+config MOSAICO_USAGE_PANEL_BLE_ADVERTISING_PREFIX
+    string "BLE advertising name prefix"
+    default "QF-Mosaico-"
+    help
+        Prefix of the BLE advertising name. The full name is this prefix plus
+        the last two Bluetooth MAC bytes as four uppercase hex digits, for
+        example QF-Mosaico-A37F, so multiple panels stay distinguishable
+        without manual coordination. Keep the prefix within 15 characters so
+        prefix plus suffix fits the advertising name buffer.
+
+        The prefix must start with QF- and contain at most 15 printable ASCII
+        characters without spaces. Discovery requires both this public
+        namespace and NUS; no official target registry entry is needed.
+        The four-digit suffix may collide and is not a unique identity.
+        Owned devices reconnect by Bluetooth address; status supplies their
+        display names, capabilities and optional OTA project/target metadata.
+
+endmenu
+
+endmenu

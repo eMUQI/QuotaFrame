@@ -1,0 +1,25 @@
+{
+  "name": "quotaframe-web-flasher",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.22.2"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "check": "node --check src/app.js && node --check src/flash-engine.js && node --check src/flash-session.js && node --check scripts/build.mjs && node --check astro.config.mjs",
+    "build": "astro build && node scripts/build.mjs",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "esp-web-tools": "10.4.0"
+  },
+  "devDependencies": {
+    "astro": "7.3.4",
+    "esbuild": "0.25.10",
+    "jsdom": "30.0.1"
+  },
+  "overrides": {
+    "esptool-js": "https://codeload.github.com/espressif/esptool-js/tar.gz/5f860b71218fb30aa33a3d039039c496862c360f"
+  }
+}

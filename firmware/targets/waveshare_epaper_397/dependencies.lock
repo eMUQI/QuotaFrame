@@ -1,0 +1,66 @@
+dependencies:
+  cube32esp/xpowerslib:
+    component_hash: 2514666cb8528bfd155d57b8e9f8b7eea2f8d5ceec8de1a937a063106d8c266e
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=4.4.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 0.3.3
+  esp_desktop_buddy:
+    component_hash: f1305e181359597ab959383220bf260f9ce6611a6c15a9945439dd759b670946
+    dependencies:
+    - name: idf
+      version: '>=5.4'
+    - name: espressif/cjson
+      version: 1.7.19~2
+    source:
+      git: https://github.com/espressif/esp-desktop-buddy.git
+      path: components/esp_desktop_buddy
+      type: git
+    version: b6bac05db208717676e70180e5269d79f32b2d68
+  esp_desktop_buddy_transport_ble:
+    component_hash: d27a5886b6ff0d053acacaf6b10749627e5176f4679790ae560ab0b2012b5516
+    dependencies:
+    - name: idf
+      version: '>=5.4'
+    source:
+      git: https://github.com/espressif/esp-desktop-buddy.git
+      path: components/esp_desktop_buddy_transport_ble
+      type: git
+    version: b6bac05db208717676e70180e5269d79f32b2d68
+  espressif/cjson:
+    component_hash: e788323270d90738662d66fffa910bfe1fba019bba087f01557e70c40485b469
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.7.19~2
+  idf:
+    source:
+      type: idf
+    version: 6.1.0
+  waveshare/qmi8658:
+    component_hash: b672b61491bd2c38dab2b62ebcd00d49b0947762c0c718608f3820fce28adfd8
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.3.2'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 2.0.0
+direct_dependencies:
+- cube32esp/xpowerslib
+- esp_desktop_buddy
+- esp_desktop_buddy_transport_ble
+- idf
+- waveshare/qmi8658
+manifest_hash: 2fd38a03a5debb7da3d29bd90761e563a88e45031e94fdf3e02752fc7b2c75c0
+target: esp32s3
+version: 3.0.0

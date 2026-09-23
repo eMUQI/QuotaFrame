@@ -1,0 +1,10 @@
+dependencies:
+  idf: ">=5.4"
+  esp_desktop_buddy:
+    git: "https://github.com/espressif/esp-desktop-buddy.git"
+    path: "components/esp_desktop_buddy"
+    version: "b6bac05db208717676e70180e5269d79f32b2d68"
+  esp_desktop_buddy_transport_ble:
+    git: "https://github.com/espressif/esp-desktop-buddy.git"
+    path: "components/esp_desktop_buddy_transport_ble"
+    version: "b6bac05db208717676e70180e5269d79f32b2d68"

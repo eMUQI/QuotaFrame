@@ -1,0 +1,14 @@
+menu "Usage Panel OTA"
+
+config USAGE_OTA_MIN_BATTERY_PERCENT
+    int "Minimum battery percent required for OTA on internal power"
+    range 0 100
+    default 40
+    help
+        Firmware updates are rejected unless the device reports external
+        power or a battery percent greater than or equal to this value.
+        A reading that cannot be taken also rejects the update (fail-closed).
+        The name and the inclusive comparison are intentionally paired:
+        MIN means at-or-above passes.
+
+endmenu

@@ -1,0 +1,14 @@
+# Hash-locked Apple Silicon release wheels for CPython 3.13.14.
+altgraph==0.17.5 --hash=sha256:f3a22400bce1b0c701683820ac4f3b159cd301acab067c51c653e06961600597
+bleak==3.0.2 --hash=sha256:39092feb9e83f1df5ad2f88e837723c7211c982ce9e9cda6235104bc2ebe0d0d
+macholib==1.16.4 --hash=sha256:da1a3fa8266e30f0ce7e97c6a54eefaae8edd1e5f86f3eb8b95457cae90265ea
+packaging==26.2 --hash=sha256:5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e
+pip==26.1.2 --hash=sha256:382ff9f685ee3bc25864f820aa50505825f10f5458ffff07e30a6d96e5715cab
+pyinstaller==6.22.0 --hash=sha256:d7c7c5b149f7f9b37585b37e2376f774038b6a5633ba34db0de2698f75391e13
+pyinstaller-hooks-contrib==2026.6 --hash=sha256:fd13b8ac126b35361175edacd41a0d97080b75dd5f4b594ecefefff969509dd3
+pyobjc-core==12.2.2 --hash=sha256:950bd2d9c74634398c4e3d24ef2f213d4e23d705083697464fa67afedc53c1ad
+pyobjc-framework-Cocoa==12.2.2 --hash=sha256:600b1723184ca094931330e79355274949965460e23de38628d601b5a967baf9
+pyobjc-framework-CoreBluetooth==12.2.2 --hash=sha256:0c483a90fb7ebf269af5f235fed82e437d8ff892c133f064af25623bf43efe16
+pyobjc-framework-libdispatch==12.2.2 --hash=sha256:9c62b8c03b9e8c8925fdbb9d5a9541c1e9a4023ec06f1312441edfd166f33398
+pyobjc-framework-UserNotifications==12.2.2 --hash=sha256:2e56cd2e57d63b91eb7585803386fe7cab8c8f889c499b838b32f9f4ff3bd828
+setuptools==83.0.0 --hash=sha256:29b23c360f22f414dc7336bb39178cc7bcbf6021ed2733cde173f09dba19abb3

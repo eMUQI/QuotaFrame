@@ -1,0 +1,6 @@
+dependencies:
+  # Display support is required by this target. Declare its dependencies here
+  # because BSP config rules cannot be evaluated before sdkconfig exists.
+  # Keeping both dependencies in the first pass preserves the locked graph.
+  espressif/esp_lvgl_adapter: "0.6.2"
+  lvgl/lvgl: "^9.5.0,<9.6.0"

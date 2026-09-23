@@ -1,0 +1,10 @@
+#pragma once
+
+inline constexpr char kUsageOk[] =
+    R"fixture(@USAGE_OK_JSON@)fixture" "\n";
+inline constexpr char kUsageInvalidPercent[] =
+    R"fixture(@USAGE_INVALID_PERCENT_JSON@)fixture" "\n";
+inline constexpr char kUsageInvalidNumeric[] =
+    R"fixture(@USAGE_INVALID_NUMERIC_JSON@)fixture" "\n";
+inline constexpr char kUsageInvalidOrphanReset[] =
+    R"fixture(@USAGE_INVALID_ORPHAN_RESET_JSON@)fixture" "\n";

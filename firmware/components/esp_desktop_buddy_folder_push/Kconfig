@@ -1,0 +1,43 @@
+menu "ESP Desktop Buddy Folder Push"
+
+config ESP_DESKTOP_BUDDY_FOLDER_PUSH_MAX_RAW_CHUNK
+    int "Max base64 chunk length"
+    range 64 4096
+    default 1024
+    help
+        Maximum base64-encoded chunk bytes accepted by a single `chunk`
+        command before the folder-push state machine rejects the request.
+
+config ESP_DESKTOP_BUDDY_FOLDER_PUSH_MAX_DECODED_CHUNK
+    int "Max decoded chunk length"
+    range 64 4096
+    default 512
+    help
+        Maximum decoded payload bytes accepted from a single `chunk`
+        command before the state machine rejects the request prior to
+        sink writeout.
+
+        The implementation allocates a decode buffer of this size on the Buddy
+        core task stack while handling a `chunk` command. Keep this value small
+        enough to fit within the core task's stack budget.
+
+config ESP_DESKTOP_BUDDY_FOLDER_PUSH_MAX_TRANSFER_BYTES
+    int "Max transfer size bytes"
+    range 0 4194816
+    default 4194816
+    help
+        Maximum total decoded payload bytes accepted by a single `char_begin`
+        transfer. Set this to zero to disable the limit. Transfers that exceed
+        the configured cap are rejected before any sink callbacks run.
+        OTA targets use the smaller app partition size plus 512 bytes for
+        the manifest; the OTA backend also checks the image against its partition.
+
+config ESP_DESKTOP_BUDDY_FOLDER_PUSH_FLAT_PATHS_ONLY
+    bool "Restrict paths to flat relative filenames"
+    default y
+    help
+        Reject paths containing `/` so the folder-push state machine accepts
+        only flat relative filenames. Disable this if your sink intentionally
+        supports nested directory staging.
+
+endmenu

@@ -1,0 +1,2 @@
+{"cmd":"status"}
+{"ack":"status","ok":true,"n":0,"data":{"name":"书桌额度屏","sec":true,"protocol":1,"caps":["usage.v1"]}}

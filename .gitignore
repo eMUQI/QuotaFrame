@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# ESP-IDF generated files
+/build*/
+firmware/build/
+firmware/managed_components/
+firmware/sdkconfig
+firmware/sdkconfig.old
+firmware/test_apps/*/build/
+firmware/test_apps/*/managed_components/
+firmware/test_apps/*/sdkconfig
+firmware/test_apps/*/sdkconfig.old
+firmware/targets/*/build/
+firmware/targets/*/build*/
+firmware/targets/*/managed_components/
+firmware/targets/*/sdkconfig
+firmware/targets/*/sdkconfig.old
+firmware/targets/*/test_apps/*/build/
+firmware/targets/*/test_apps/*/managed_components/
+firmware/targets/*/test_apps/*/sdkconfig
+firmware/targets/*/test_apps/*/sdkconfig.old
+firmware/.pio/
+
+# ESP-IDF Installation Manager local config
+/eim_config.toml
+
+# PyInstaller build output
+bridge/.build-venv/
+bridge/dist/
+bridge/build/
+
+# Release bundle output
+/release/
+
+# Web flasher build output
+/web/node_modules/
+/web/dist/
+/web/.astro/
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Ad-hoc test scratch
+.test-localappdata/
+.test-artifacts/
+
+/pages-site/
+
+# Local credentials and assistant state
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+/.claude/
+/.codex/
+/.agents/
+skills-lock.json

@@ -1,0 +1,41 @@
+dependencies:
+  esp_desktop_buddy:
+    component_hash: f1305e181359597ab959383220bf260f9ce6611a6c15a9945439dd759b670946
+    dependencies:
+    - name: idf
+      version: '>=5.4'
+    - name: espressif/cjson
+      version: 1.7.19~2
+    source:
+      git: https://github.com/espressif/esp-desktop-buddy.git
+      path: components/esp_desktop_buddy
+      type: git
+    version: b6bac05db208717676e70180e5269d79f32b2d68
+  espressif/cjson:
+    component_hash: e788323270d90738662d66fffa910bfe1fba019bba087f01557e70c40485b469
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.7.19~2
+  idf:
+    source:
+      type: idf
+    version: 6.1.0
+  lvgl/lvgl:
+    component_hash: 184e532558c1c45fefed631f3e235423d22582aafb4630f3e8885c35281a49ae
+    dependencies: []
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 9.5.0
+direct_dependencies:
+- esp_desktop_buddy
+- idf
+- lvgl/lvgl
+manifest_hash: 01a4a885a0993058ddb1dbd4b18a2f8d1bc291c8390eb0d3c82371f403e97529
+target: esp32s31
+version: 3.0.0

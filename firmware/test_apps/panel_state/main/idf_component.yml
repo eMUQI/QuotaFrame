@@ -1,0 +1,5 @@
+dependencies:
+  idf: ">=6.1"
+  # Only usage_bar_animation reaches LVGL, and it uses the parts that are stable
+  # across the 9.x line, so this app is not pinned to either target's version.
+  lvgl/lvgl: "^9"

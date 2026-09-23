@@ -1,0 +1,33 @@
+dependencies:
+  esp_desktop_buddy:
+    component_hash: f1305e181359597ab959383220bf260f9ce6611a6c15a9945439dd759b670946
+    dependencies:
+    - name: idf
+      version: '>=5.4'
+    - name: espressif/cjson
+      version: 1.7.19~2
+    source:
+      git: https://github.com/espressif/esp-desktop-buddy.git
+      path: components/esp_desktop_buddy
+      type: git
+    version: b6bac05db208717676e70180e5269d79f32b2d68
+  espressif/cjson:
+    component_hash: e788323270d90738662d66fffa910bfe1fba019bba087f01557e70c40485b469
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.7.19~2
+  idf:
+    source:
+      type: idf
+    version: 6.1.0
+direct_dependencies:
+- esp_desktop_buddy
+- idf
+manifest_hash: ae1ed22d0500b7084a46a8587b182de0939e8051e39ca3daab64f28a9274841d
+target: esp32s3
+version: 3.0.0

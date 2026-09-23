@@ -1,0 +1,354 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency: release-${{ github.ref }}
+
+jobs:
+  preflight:
+    name: Validate version and source
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+      release_repository: ${{ steps.version.outputs.release_repository }}
+      firmware_matrix: ${{ steps.targets.outputs.matrix }}
+    steps:
+      # actions/checkout v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+
+      # actions/setup-python v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.13.14"
+
+      - name: Generate firmware target matrix
+        id: targets
+        shell: bash
+        run: echo "matrix=$(python scripts/target_registry.py release-matrix)" >> "$GITHUB_OUTPUT"
+
+      - name: Validate tag, source version, and release repository
+        id: version
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || '' }}
+        shell: bash
+        run: |
+          PYTHONPATH=bridge/src:. python - <<'PY'
+          import os
+          from pathlib import Path
+
+          from quotaframe_bridge import __version__
+          from quotaframe_bridge.release_config import validate_repository
+          from quotaframe_bridge.versioning import SemVer
+
+          version = SemVer.from_tag(os.environ["RELEASE_TAG"] or f"v{__version__}")
+          if str(version) != __version__:
+              raise SystemExit(
+                  f"tag version {version} does not match Bridge version {__version__}"
+              )
+          notes = Path("docs/release/notes") / f"v{version}.md"
+          if not notes.is_file():
+              raise SystemExit(f"missing release notes: {notes}")
+          release_repository = validate_repository(os.environ["GITHUB_REPOSITORY"])
+          output = Path(os.environ["GITHUB_OUTPUT"])
+          with output.open("a", encoding="utf-8", newline="\n") as stream:
+              stream.write(f"version={version}\n")
+              stream.write(f"prerelease={'true' if version.is_prerelease else 'false'}\n")
+              stream.write(f"release_repository={release_repository}\n")
+          PY
+
+      # Anonymous on purpose: a private release repository 404s here instead
+      # of passing on the workflow token and failing at the last publish step.
+      - name: Verify target repository is publicly readable
+        env:
+          RELEASE_REPO: ${{ steps.version.outputs.release_repository }}
+        shell: bash
+        run: |
+          curl --fail --silent --show-error --location \
+            "https://api.github.com/repos/$RELEASE_REPO" \
+            | jq --exit-status '.private == false' > /dev/null
+
+      - name: Install Bridge dependencies
+        run: python -m pip install --disable-pip-version-check ./bridge
+
+      - name: Run Bridge tests
+        shell: bash
+        run: |
+          cd bridge
+          PYTHONPATH=src:.. python -m unittest discover -s tests -v
+          python -m compileall -q src tests
+
+  firmware:
+    name: Build firmware (${{ matrix.id }})
+    needs: preflight
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.idf_image }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.preflight.outputs.firmware_matrix) }}
+    steps:
+      # actions/checkout v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+
+      - name: Build firmware image
+        shell: bash
+        run: |
+          git config --global core.autocrlf false
+          sha256sum "${{ matrix.path }}/dependencies.lock" > lockfile.sha256
+          . "$IDF_PATH/export.sh"
+          idf.py -C "${{ matrix.path }}" \
+            -D PROJECT_VER="${{ needs.preflight.outputs.version }}" build
+          idf.py -C "${{ matrix.path }}" merge-bin \
+            -o "${{ matrix.full_image }}"
+
+      - name: Verify dependency lock
+        shell: bash
+        run: |
+          expected=$(cut -d ' ' -f1 lockfile.sha256)
+          actual=$(sha256sum "${{ matrix.path }}/dependencies.lock" | cut -d ' ' -f1)
+          if [ "$actual" != "$expected" ]; then
+            git diff -- "${{ matrix.path }}/dependencies.lock"
+            echo "::error::${{ matrix.path }}/dependencies.lock changed during the build"
+            exit 1
+          fi
+          rm lockfile.sha256
+
+      # actions/upload-artifact v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: firmware-${{ matrix.id }}
+          path: |
+            ${{ matrix.path }}/build/${{ matrix.image }}
+            ${{ matrix.path }}/build/${{ matrix.full_image }}
+            ${{ matrix.path }}/build/project_description.json
+          if-no-files-found: error
+          retention-days: 1
+
+  bridge-windows:
+    name: Build Windows Bridge
+    needs: preflight
+    runs-on: windows-latest
+    steps:
+      # actions/checkout v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+
+      # actions/setup-python v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.13.14"
+
+      - name: Install and test Bridge
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check ./bridge
+          $env:PYTHONPATH = "bridge/src;."
+          python -m unittest discover -s bridge/tests -v
+
+      - name: Build executable
+        shell: pwsh
+        run: ./bridge/build_exe.ps1 -ReleaseRepository "${{ needs.preflight.outputs.release_repository }}" -Python python
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: ./bridge/build_installer.ps1 -Python python
+
+      # actions/upload-artifact v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: bridge-windows
+          path: |
+            bridge/dist/quotaframe-bridge.exe
+            bridge/dist/quotaframe-bridge-windows-*-setup.exe
+          if-no-files-found: error
+          retention-days: 1
+
+  bridge-macos:
+    name: Build Apple Silicon Bridge
+    needs: preflight
+    runs-on: macos-15
+    steps:
+      # actions/checkout v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.13.14"
+
+      - name: Require Apple Silicon runner
+        shell: bash
+        run: test "$(uname -m)" = arm64
+
+      - name: Install and test Bridge
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check ./bridge
+          PYTHONPATH=bridge/src:. python -m unittest discover -s bridge/tests -v
+
+      - name: Build application bundle
+        shell: bash
+        run: ./bridge/build_app.sh --release-repository "${{ needs.preflight.outputs.release_repository }}" --python python
+
+      - name: Build DMG installer
+        shell: bash
+        run: |
+          ./bridge/build_dmg.sh \
+            --app "bridge/dist/QuotaFrame Bridge.app" \
+            --output "bridge/dist/quotaframe-bridge-macos-arm64-v${{ needs.preflight.outputs.version }}.dmg"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: bridge-macos
+          path: |
+            bridge/dist/quotaframe-bridge-macos-arm64-*.dmg
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Assemble, verify, and publish product Release
+    permissions:
+      contents: write
+    needs:
+      - preflight
+      - firmware
+      - bridge-windows
+      - bridge-macos
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_REPO: ${{ needs.preflight.outputs.release_repository }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.13.14"
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: firmware-*
+          path: downloads/firmware
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: bridge-windows
+          path: downloads/windows
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: bridge-macos
+          path: downloads/macos
+
+      - name: Assemble exact Release assets
+        shell: bash
+        run: |
+          version="${{ needs.preflight.outputs.version }}"
+          python scripts/assemble_release.py \
+            --version "$version" \
+            --repository "$RELEASE_REPO" \
+            --firmware-root downloads/firmware \
+            --windows-exe downloads/windows/quotaframe-bridge.exe \
+            --windows-setup downloads/windows/quotaframe-bridge-windows-v"$version"-setup.exe \
+            --macos-dmg downloads/macos/quotaframe-bridge-macos-arm64-v"$version".dmg \
+            --license LICENSE \
+            --third-party-licenses THIRD_PARTY_LICENSES.md \
+            --output release-assets
+
+      - name: Upload release candidate
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: quotaframe-v${{ needs.preflight.outputs.version }}-candidate
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Prepare Release assets
+        if: github.event_name == 'push'
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.preflight.outputs.version }}
+        shell: bash
+        run: |
+          notes="docs/release/notes/v${VERSION}.md"
+          tag="$GITHUB_REF_NAME"
+          title="QuotaFrame v${VERSION}"
+          prerelease="${{ needs.preflight.outputs.prerelease }}"
+          if ! gh api "repos/$RELEASE_REPO/releases/tags/$tag" \
+              > existing-release.json 2>/dev/null; then
+            already_published=false
+            gh release create "$tag" release-assets/* --repo "$RELEASE_REPO" \
+              --title "$title" --notes-file "$notes" \
+              --verify-tag --draft --prerelease="$prerelease"
+          elif [ "$(jq -r .draft existing-release.json)" = true ]; then
+            already_published=false
+            jq -r '.assets[].id' existing-release.json \
+              | xargs -r -I{} gh api --method DELETE \
+                "repos/$RELEASE_REPO/releases/assets/{}"
+            gh release edit "$tag" --repo "$RELEASE_REPO" \
+              --title "$title" --notes-file "$notes" \
+              --draft=true --prerelease="$prerelease"
+            gh release upload "$tag" release-assets/* --repo "$RELEASE_REPO"
+          else
+            # A published Release is never rewritten, only re-checked.
+            already_published=true
+            test "$(jq -r .prerelease existing-release.json)" = "$prerelease"
+          fi
+          echo "already_published=$already_published" >> "$GITHUB_OUTPUT"
+
+      - name: Re-download and verify Release assets
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          mkdir verified-release
+          gh release download "$GITHUB_REF_NAME" --repo "$RELEASE_REPO" \
+            --dir verified-release
+          diff --recursive --brief release-assets verified-release
+          cd verified-release
+          sha256sum --check SHA256SUMS.txt
+
+      - name: Publish and verify anonymous firmware access
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if [ "${{ steps.release.outputs.already_published }}" != true ]; then
+            gh release edit "$GITHUB_REF_NAME" --repo "$RELEASE_REPO" --draft=false
+          fi
+          curl --fail --silent --show-error --location \
+            --retry 8 --retry-delay 2 --retry-all-errors \
+            "https://github.com/$RELEASE_REPO/releases/download/$GITHUB_REF_NAME/manifest.json" \
+            --output public-manifest.json
+          cmp --silent release-assets/manifest.json public-manifest.json
+
+  refresh-cloudflare:
+    name: Refresh Cloudflare website after stable release
+    needs:
+      - preflight
+      - publish
+    if: github.event_name == 'push' && needs.preflight.outputs.prerelease == 'false'
+    permissions: {}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger website build
+        env:
+          DEPLOY_HOOK: ${{ secrets.CLOUDFLARE_PAGES_DEPLOY_HOOK }}
+        shell: bash
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "::notice::Cloudflare Deploy Hook is not configured; only Git pushes trigger website builds."
+            exit 0
+          fi
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 \
+            --connect-timeout 15 --max-time 60 --request POST "$DEPLOY_HOOK" \
+            --output /dev/null

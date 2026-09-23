@@ -1,0 +1,4 @@
+dependencies:
+  idf: ">=6.1,<6.2"
+  cube32esp/xpowerslib: "0.3.3"
+  waveshare/qmi8658: "2.0.0"

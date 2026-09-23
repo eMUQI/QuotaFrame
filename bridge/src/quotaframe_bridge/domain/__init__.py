@@ -1,0 +1,1 @@
+"""Bridge domain models."""

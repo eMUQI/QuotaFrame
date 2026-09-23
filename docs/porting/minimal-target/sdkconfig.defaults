@@ -1,0 +1,18 @@
+# Copy this file into firmware/targets/<target>/ and replace these examples
+# with settings verified for the actual board.
+#
+# Intentionally do not copy M5StickS3 or Waveshare flash/PSRAM settings here:
+# those are hardware-specific.
+
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+
+# Match the current Bridge Folder Push OTA wire contract. The Bridge emits
+# decoded firmware blocks up to 2880 bytes (3840 bytes after base64 encoding),
+# so maintained targets using usage_ota must not rely on the smaller component
+# defaults.
+CONFIG_ESP_DESKTOP_BUDDY_FOLDER_PUSH_MAX_RAW_CHUNK=4096
+CONFIG_ESP_DESKTOP_BUDDY_FOLDER_PUSH_MAX_DECODED_CHUNK=2880
+CONFIG_ESP_DESKTOP_BUDDY_FOLDER_PUSH_MAX_TRANSFER_BYTES=2097664
+CONFIG_ESP_DESKTOP_BUDDY_FOLDER_PUSH_FLAT_PATHS_ONLY=y

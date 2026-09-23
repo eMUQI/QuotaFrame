@@ -1,0 +1,64 @@
+dependencies:
+  esp_desktop_buddy:
+    component_hash: f1305e181359597ab959383220bf260f9ce6611a6c15a9945439dd759b670946
+    dependencies:
+    - name: idf
+      version: '>=5.4'
+    - name: espressif/cjson
+      version: 1.7.19~2
+    source:
+      git: https://github.com/espressif/esp-desktop-buddy.git
+      path: components/esp_desktop_buddy
+      type: git
+    version: b6bac05db208717676e70180e5269d79f32b2d68
+  esp_desktop_buddy_transport_ble:
+    component_hash: d27a5886b6ff0d053acacaf6b10749627e5176f4679790ae560ab0b2012b5516
+    dependencies:
+    - name: idf
+      version: '>=5.4'
+    source:
+      git: https://github.com/espressif/esp-desktop-buddy.git
+      path: components/esp_desktop_buddy_transport_ble
+      type: git
+    version: b6bac05db208717676e70180e5269d79f32b2d68
+  espressif/cjson:
+    component_hash: e788323270d90738662d66fffa910bfe1fba019bba087f01557e70c40485b469
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.7.19~2
+  idf:
+    source:
+      type: idf
+    version: 6.1.0
+  m5stack/m5gfx:
+    component_hash: b07a5242ed42389520da0ef969e38d85168398ac21bdc80ea621ca887b09f904
+    dependencies: []
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 0.2.27
+  m5stack/m5unified:
+    component_hash: c724c46511f68cdef357956fb797af558644be707c9adeabd83fce8ce8c8b992
+    dependencies:
+    - name: m5stack/m5gfx
+      registry_url: https://components.espressif.com
+      require: private
+      version: '>=0.2.27'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 0.2.20
+direct_dependencies:
+- esp_desktop_buddy
+- esp_desktop_buddy_transport_ble
+- idf
+- m5stack/m5gfx
+- m5stack/m5unified
+manifest_hash: 15128645b96d9504845c1f3992ef2e811aa13a798dfeae71d61f28aab92c0709
+target: esp32s3
+version: 3.0.0

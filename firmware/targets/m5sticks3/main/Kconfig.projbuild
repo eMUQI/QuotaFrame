@@ -1,0 +1,52 @@
+menu "M5 Usage Panel"
+
+menu "Display"
+
+config M5_USAGE_PANEL_DISPLAY_BRIGHTNESS_PERCENT
+    int "Display brightness (percent)"
+    range 1 100
+    default 55
+    help
+        Panel brightness applied once at startup through M5GFX. The panel
+        stays at this level; there is no screensaver dimming on this target.
+
+choice M5_USAGE_PANEL_ROTATION
+    prompt "Fixed screen orientation"
+    default M5_USAGE_PANEL_ROTATION_0
+    help
+        The panel UI is laid out for upright portrait use, so only upright
+        and inverted orientations are offered. Inverted mounting suits a
+        desk stand that faces the panel away from the user.
+
+config M5_USAGE_PANEL_ROTATION_0
+    bool "0 degrees"
+
+config M5_USAGE_PANEL_ROTATION_180
+    bool "180 degrees (inverted)"
+
+endchoice
+
+endmenu
+
+menu "Bluetooth"
+
+config M5_USAGE_PANEL_BLE_ADVERTISING_PREFIX
+    string "BLE advertising name prefix"
+    default "QF-M5-"
+    help
+        Prefix of the BLE advertising name. The full name is this prefix plus
+        the last two Bluetooth MAC bytes as four uppercase hex digits, for
+        example QF-M5-A37F, so multiple panels stay distinguishable
+        without manual coordination. Keep the prefix within 15 characters so
+        prefix plus suffix fits the advertising name buffer.
+
+        The prefix must start with QF- and contain at most 15 printable ASCII
+        characters without spaces. Discovery requires both this public
+        namespace and NUS; no official target registry entry is needed.
+        The four-digit suffix may collide and is not a unique identity.
+        Owned devices reconnect by Bluetooth address; status supplies their
+        display names, capabilities and optional OTA project/target metadata.
+
+endmenu
+
+endmenu

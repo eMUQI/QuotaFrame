@@ -1,0 +1,192 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      firmware: ${{ steps.filter.outputs.firmware }}
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Resolve diff base
+        id: base
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          base="$BASE_SHA"
+          # A force push can remove the previous commit from the fetched history.
+          # Check the full source tree when the comparison base is unavailable.
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] \
+            || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            base=$(git hash-object -w -t tree /dev/null)
+          fi
+          echo "sha=$base" >> "$GITHUB_OUTPUT"
+
+      # The Bridge job is skipped for documentation-only changes, so the
+      # whitespace check runs here, where every change passes through.
+      - name: Check source whitespace
+        shell: bash
+        run: git diff --check "${{ steps.base.outputs.sha }}" HEAD
+
+      - name: Detect firmware-related and code changes
+        id: filter
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          changed_files=$(mktemp)
+          trap 'rm -f "$changed_files"' EXIT
+          git diff --name-only "${{ steps.base.outputs.sha }}" HEAD > "$changed_files"
+
+          if grep -Eq '^(firmware/|protocol/examples/|bridge/src/quotaframe_bridge/targets\.py$|scripts/target_registry\.py$|\.github/workflows/ci\.yml$)' "$changed_files"; then
+            echo "firmware=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "firmware=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Anything outside prose and repository metadata counts as code.
+          # The Bridge suite reads the licence notices and the release notes
+          # for the current version, so those are not prose for this purpose.
+          if grep -Eq '^(LICENSE|THIRD_PARTY_LICENSES\.md|docs/release/notes/.*\.md)$' "$changed_files" \
+            || grep -Evq '^(docs/|\.gitignore$|\.gitattributes$)|\.md$' "$changed_files"; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate firmware build matrix
+        id: matrix
+        shell: bash
+        run: echo "matrix=$(python scripts/target_registry.py ci-matrix)" >> "$GITHUB_OUTPUT"
+
+  bridge:
+    name: Bridge tests
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install Bridge dependencies
+        run: python -m pip install --disable-pip-version-check ./bridge
+
+      - name: Run Bridge tests
+        shell: bash
+        run: |
+          cd bridge
+          PYTHONPATH=src:.. python -m unittest discover -s tests -v
+          python -m compileall -q src tests
+
+  web:
+    name: Web flasher tests
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      # actions/checkout v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: "22.22.2"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install locked Web dependencies
+        run: npm ci --prefix web
+
+      - name: Run Web flasher tests
+        run: |
+          npm run check --prefix web
+          npm run build --prefix web
+          npm test --prefix web
+
+  firmware_build:
+    name: Firmware - ${{ matrix.name }}
+    needs: changes
+    if: needs.changes.outputs.firmware == 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.idf_image }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.changes.outputs.matrix) }}
+    env:
+      IDF_CCACHE_ENABLE: "1"
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Configure deterministic git behavior
+        shell: bash
+        run: |
+          git config --global core.autocrlf false
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global init.defaultBranch main
+
+      - name: Restore compiler cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: firmware-ccache-idf-v${{ matrix.idf_version }}-${{ matrix.cache-name }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            firmware-ccache-idf-v${{ matrix.idf_version }}-${{ matrix.cache-name }}-${{ github.ref_name }}-
+            firmware-ccache-idf-v${{ matrix.idf_version }}-${{ matrix.cache-name }}-
+
+      - name: Configure compiler cache
+        shell: bash
+        run: |
+          . "$IDF_PATH/export.sh"
+          ccache --max-size=1500M
+          ccache --zero-stats
+
+      # Hosted CI compiles the Unity test applications, but does not execute
+      # them on target hardware.
+      - name: Build ${{ matrix.name }}
+        shell: bash
+        run: |
+          . "$IDF_PATH/export.sh"
+
+          for project in ${{ matrix.paths }}; do
+            if [ "${{ matrix.check-lockfile }}" = "true" ]; then
+              sha256sum "$project/dependencies.lock" > lockfile.sha256
+            fi
+
+            idf.py -C "$project" build
+
+            if [ "${{ matrix.check-lockfile }}" = "true" ]; then
+              expected=$(cut -d ' ' -f1 lockfile.sha256)
+              actual=$(sha256sum "$project/dependencies.lock" | cut -d ' ' -f1)
+              rm lockfile.sha256
+              if [ "$actual" != "$expected" ]; then
+                git diff -- "$project/dependencies.lock"
+                echo "::error::$project/dependencies.lock changed during the build"
+                exit 1
+              fi
+            fi
+          done

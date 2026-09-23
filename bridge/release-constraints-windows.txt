@@ -1,0 +1,25 @@
+# Exact dependency set for Windows release packaging.
+# Baseline: successful v0.3.0 release on Python 3.13.14, with PyInstaller
+# build dependencies completed from the versions available at that release.
+altgraph==0.17.5
+bleak==3.0.2
+packaging==26.2
+pefile==2024.8.26
+pillow==12.3.0
+pip==26.1.2
+pyinstaller==6.22.0
+pyinstaller-hooks-contrib==2026.6
+pystray==0.19.5
+pywin32-ctypes==0.2.3
+setuptools==83.0.0
+six==1.17.0
+typing_extensions==4.16.0
+winrt-runtime==3.2.1
+winrt-Windows.Devices.Bluetooth==3.2.1
+winrt-Windows.Devices.Bluetooth.Advertisement==3.2.1
+winrt-Windows.Devices.Bluetooth.GenericAttributeProfile==3.2.1
+winrt-Windows.Devices.Enumeration==3.2.1
+winrt-Windows.Devices.Radios==3.2.1
+winrt-Windows.Foundation==3.2.1
+winrt-Windows.Foundation.Collections==3.2.1
+winrt-Windows.Storage.Streams==3.2.1
