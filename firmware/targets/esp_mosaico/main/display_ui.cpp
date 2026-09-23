@@ -491,7 +491,7 @@ void DisplayUi::build_header(lv_obj_t* screen)
     // lens ring and a state-coloured lens centre.
     static const lv_point_precise_t kSlash[] = {{3, 2}, {23, 26}};
     camera_indicator_ = make_shape(screen, 275, 13, 26, 28, 0);
-#if CONFIG_MOSAICO_GESTURE_DEBUG_PREVIEW
+#if CONFIG_MOSAICO_CAMERA_PREVIEW
     lv_obj_add_flag(camera_indicator_, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_ext_click_area(camera_indicator_, 8);
     lv_obj_add_event_cb(camera_indicator_, camera_preview_toggle_event, LV_EVENT_CLICKED, this);
@@ -955,7 +955,8 @@ void DisplayUi::camera_toggle_event(lv_event_t* event)
 void DisplayUi::camera_preview_toggle_event(lv_event_t* event)
 {
     auto* ui = static_cast<DisplayUi*>(lv_event_get_user_data(event));
-    if (!ui->camera_preview_ || !ui->camera_preview_available_) return;
+    if (!ui->camera_preview_ ||
+        !ui->camera_preview_available_.load(std::memory_order_relaxed)) return;
     const bool enabled = !ui->camera_preview_enabled_.load(std::memory_order_relaxed);
     ui->camera_preview_enabled_.store(enabled, std::memory_order_relaxed);
     lv_obj_set_flag(ui->camera_preview_, LV_OBJ_FLAG_HIDDEN, !enabled);
@@ -977,10 +978,11 @@ bool DisplayUi::show_camera_state(bool enabled, GestureStatus status, uint8_t pr
     for (lv_obj_t* part : camera_indicator_parts_) lv_obj_set_style_bg_color(part, color, 0);
     for (lv_obj_t* slash : camera_indicator_slash_) lv_obj_set_flag(slash, LV_OBJ_FLAG_HIDDEN, !failed);
     lv_obj_set_flag(gesture_progress_, LV_OBJ_FLAG_HIDDEN, !visible || !progress);
-    camera_preview_available_ = enabled && visible && status == GestureStatus::Ready;
+    const bool available = enabled && visible && status == GestureStatus::Ready;
+    camera_preview_available_.store(available, std::memory_order_relaxed);
     if (camera_preview_)
         lv_obj_set_flag(camera_preview_, LV_OBJ_FLAG_HIDDEN,
-            !camera_preview_available_ || !camera_preview_enabled_.load(std::memory_order_relaxed));
+            !available || !camera_preview_enabled_.load(std::memory_order_relaxed));
     if (visible && progress) {
         lv_bar_set_value(gesture_progress_, progress, LV_ANIM_OFF);
         lv_obj_move_foreground(gesture_progress_);
@@ -990,7 +992,7 @@ bool DisplayUi::show_camera_state(bool enabled, GestureStatus status, uint8_t pr
 
 void DisplayUi::build_camera_preview(lv_obj_t* screen)
 {
-#if CONFIG_MOSAICO_GESTURE_DEBUG_PREVIEW
+#if CONFIG_MOSAICO_CAMERA_PREVIEW
     // Half-resolution RGB preview; either rotated dimension is at most 160 pixels.
     constexpr uint32_t kSide = 160;
     const uint32_t stride = lv_draw_buf_width_to_stride(kSide, LV_COLOR_FORMAT_RGB565);
@@ -1005,9 +1007,6 @@ void DisplayUi::build_camera_preview(lv_obj_t* screen)
     lv_obj_set_style_border_width(camera_preview_box_, 2, 0);
     lv_obj_set_style_border_color(camera_preview_box_, lv_color_hex(COLOR_TEXT), 0);
     lv_obj_add_flag(camera_preview_box_, LV_OBJ_FLAG_HIDDEN);
-    camera_preview_label_ = make_label(camera_preview_, "", 2, 2, &montserrat_semibold_13, COLOR_TEXT);
-    lv_obj_set_style_bg_color(camera_preview_label_, lv_color_hex(COLOR_BG), 0);
-    lv_obj_set_style_bg_opa(camera_preview_label_, LV_OPA_70, 0);
     lv_obj_add_flag(camera_preview_, LV_OBJ_FLAG_HIDDEN);
 #else
     (void)screen;
@@ -1017,11 +1016,13 @@ void DisplayUi::build_camera_preview(lv_obj_t* screen)
 void DisplayUi::show_camera_preview(const uint8_t* rgb, unsigned width, unsigned height, const HandObservation& hand)
 {
     if (!camera_preview_enabled_.load(std::memory_order_relaxed) ||
+        !camera_preview_available_.load(std::memory_order_relaxed) ||
         !camera_preview_canvas_ || !rgb || width > 320 || height > 320) return;
     const uint32_t w = width / 2;
     const uint32_t h = height / 2;
     DisplayLock lock;
     if (!lock) return;
+    // Visibility can change while this frame waits for the display lock.
     if (lv_obj_has_flag(camera_preview_, LV_OBJ_FLAG_HIDDEN)) return;
     const lv_image_dsc_t* image = lv_canvas_get_image(camera_preview_canvas_);
     if (image->header.w != w || image->header.h != h) {
@@ -1045,11 +1046,8 @@ void DisplayUi::show_camera_preview(const uint8_t* rgb, unsigned width, unsigned
         lv_obj_set_pos(camera_preview_box_, int(hand.x * w) - bw / 2, int(hand.y * h) - bh / 2);
         lv_obj_set_size(camera_preview_box_, bw, bh);
         lv_obj_remove_flag(camera_preview_box_, LV_OBJ_FLAG_HIDDEN);
-        lv_label_set_text_fmt(camera_preview_label_, "N%u S%d OK%d", hand.count, int(hand.score * 100),
-                              int(hand.ok_score * 100));
     } else {
         lv_obj_add_flag(camera_preview_box_, LV_OBJ_FLAG_HIDDEN);
-        lv_label_set_text(camera_preview_label_, "NO HAND");
     }
 }
 

@@ -166,11 +166,10 @@ private:
     lv_obj_t* camera_indicator_slash_[2]{};  // Background halo and stroke.
     lv_obj_t* gesture_progress_ = nullptr;
     std::atomic<bool> camera_preview_enabled_{false};
-    bool camera_preview_available_ = false;  // Protected by the display lock.
+    std::atomic<bool> camera_preview_available_{false};  // Allows hidden frames to skip the display lock.
     lv_obj_t* camera_preview_ = nullptr;
     lv_obj_t* camera_preview_canvas_ = nullptr;
     lv_obj_t* camera_preview_box_ = nullptr;
-    lv_obj_t* camera_preview_label_ = nullptr;
     uint8_t* camera_preview_pixels_ = nullptr;  // RGB565 canvas buffer in PSRAM.
     std::atomic<bool> camera_toggle_{false};
     uint8_t brightness_percent_ = 50;  // Serialized by the LVGL lock.

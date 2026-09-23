@@ -117,14 +117,14 @@ config MOSAICO_CAMERA_MIRROR
     help
         Mirror the front-facing camera into the user's screen coordinates.
 
-config MOSAICO_GESTURE_DEBUG_PREVIEW
+config MOSAICO_CAMERA_PREVIEW
     bool "Enable camera preview toggled by the status icon"
     default y
     depends on MOSAICO_GESTURE_INPUT
     help
-        The status-bar camera icon toggles a preview of the model input,
-        detection box and confidence scores. The preview starts hidden and
-        does not change whether gesture recognition is enabled.
+        The status-bar camera icon toggles a preview of the model input
+        and hand location box. The preview starts hidden, its visibility is
+        not persisted, and toggling it does not change gesture recognition.
 
 endmenu
 

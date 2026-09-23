@@ -204,7 +204,7 @@ extern "C" void app_main(void)
     // settings-page preview, committed by SAVE together with the display values.
     bool camera_enabled = persisted_settings.camera_enabled;
     bool camera_setting = camera_enabled;
-#if CONFIG_MOSAICO_GESTURE_DEBUG_PREVIEW
+#if CONFIG_MOSAICO_CAMERA_PREVIEW
     gestures.set_preview_sink(
         [](void* context, const uint8_t* rgb, unsigned width, unsigned height, const HandObservation& hand) {
             static_cast<DisplayUi*>(context)->show_camera_preview(rgb, width, height, hand);

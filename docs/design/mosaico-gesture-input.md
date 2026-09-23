@@ -162,7 +162,7 @@ eim run "idf.py -C firmware/test_apps/panel_state build" v6.1
 - 单手轨迹、OK 500 ms 停留、离开后再触发、有界事件与上下文失效；主循环实现翻页、只唤醒、幂等进入时钟及受保护状态屏蔽。
 - 设置页独立 `CAMERA` 开关默认关闭，与显示设置共用保存/取消；顶栏摄像头标识区分采集中、暂停与失败，不显示文字提示；停用释放采集与模型，手动重试。ESP-DL 内部部分分配使用断言；资源预检查降低风险，但不保证所有运行时内存不足均能无重启降级。
 - 7 MiB 双 OTA 分区、Folder Push 上限和 Bridge 容量配置；无共享模型分区。
-- 手势开/关固件、Mosaico logic、共享 panel_state 测试镜像以及 AMOLED 2.16 固件构建通过。31 个手势/屏保主机 Unity 测试通过 ASan/UBSan；Bridge 620 项测试通过，7 项跳过。测试镜像尚未在设备运行。
+- 手势开/关固件、Mosaico logic、共享 panel_state 测试镜像以及 AMOLED 2.16 固件构建通过。已完成手势/屏保主机 Unity 测试的 ASan/UBSan 检查及 Bridge 自动化测试。软件与硬件验证范围见[验证范围](../verification.md)，新增用例的执行情况以[手势验收记录](../validation/mosaico-gestures.md)为准；测试镜像尚未在设备运行。
 
 下一步是按[首次烧录与实机验收](../validation/mosaico-gestures.md)安装并开启手势，检查摄像头方向、真实模型输出、UI 提示布局、推理耗时、误触、启停与功耗。未烧录、未发布，也未验证物理 A/B 回滚。不能把本次软件验证解释为 P0/P1/P2 的硬件验收通过。
 

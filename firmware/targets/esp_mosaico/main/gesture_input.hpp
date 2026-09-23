@@ -24,7 +24,7 @@ public:
     using PreviewSink = void (*)(void* context, const uint8_t* rgb, unsigned width, unsigned height,
                                  const HandObservation& hand);
 
-    /** Must be called before begin(); only used with CONFIG_MOSAICO_GESTURE_DEBUG_PREVIEW. */
+    /** Must be called before begin(); only used with CONFIG_MOSAICO_CAMERA_PREVIEW. */
     void set_preview_sink(PreviewSink sink, void* context)
     {
         preview_sink_ = sink;

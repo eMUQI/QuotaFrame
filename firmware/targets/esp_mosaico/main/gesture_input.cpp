@@ -254,7 +254,7 @@ void GestureInput::run()
         if (context != context_.load()) continue;
         const GestureAction action = tracker.update(observation, finished_us / 1000);
         progress_ = tracker.hold_progress();
-#if CONFIG_MOSAICO_GESTURE_DEBUG_PREVIEW
+#if CONFIG_MOSAICO_CAMERA_PREVIEW
         if (preview_sink_) preview_sink_(preview_context_, rgb, image.width, image.height, observation);
 #endif
         // Calibration aid: normalized observations in percent, at most once per second.
