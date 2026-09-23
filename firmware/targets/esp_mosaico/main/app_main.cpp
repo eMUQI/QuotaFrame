@@ -5,7 +5,7 @@
 #include "display_ui.hpp"
 #include "local_clock.hpp"
 #include "gesture_input.hpp"
-#include "camera_setting.hpp"
+#include "panel_settings.hpp"
 #include "usage_panel_state/panel_presentation.hpp"
 #include "power_monitor.hpp"
 #include "usage_panel_state/render_schedule.hpp"
@@ -194,14 +194,15 @@ extern "C" void app_main(void)
     }
     const bool ai_button_ready = init_ai_button();
 
-    DisplaySettings saved_settings = load_display_settings({
+    const PanelSettings persisted_settings = load_panel_settings({
         CONFIG_MOSAICO_USAGE_PANEL_DISPLAY_BRIGHTNESS_PERCENT,
         CONFIG_MOSAICO_USAGE_PANEL_SCREENSAVER_TIMEOUT_SECONDS});
+    DisplaySettings saved_settings = persisted_settings.display;
     DisplaySettings settings = saved_settings;
     bool settings_open = false;
     // camera_enabled is persisted and drives capture; camera_setting is the
     // settings-page preview, committed by SAVE together with the display values.
-    bool camera_enabled = load_camera_enabled();
+    bool camera_enabled = persisted_settings.camera_enabled;
     bool camera_setting = camera_enabled;
 #if CONFIG_MOSAICO_GESTURE_DEBUG_PREVIEW
     gestures.set_preview_sink(
@@ -328,8 +329,7 @@ extern "C" void app_main(void)
                 else if (action >= SettingsAction::TimeoutOff && action <= SettingsAction::Timeout30)
                     select_clock_timeout(action, settings.clock_timeout_seconds);
                 else if (action == SettingsAction::Save) {
-                    esp_err_t error = save_display_settings(settings);
-                    if (error == ESP_OK) error = save_camera_enabled(camera_setting);
+                    const esp_err_t error = save_panel_settings({settings, camera_setting});
                     save_error = error != ESP_OK;
                     if (!save_error) {
                         saved_settings = settings;

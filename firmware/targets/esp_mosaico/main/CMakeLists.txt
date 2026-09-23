@@ -5,7 +5,7 @@ idf_component_register(
         "local_clock.cpp"
         "orientation.cpp"
         "power_monitor.cpp"
-        "camera_setting.cpp"
+        "panel_settings.cpp"
         "gesture_input.cpp"
         "gesture_tracker.cpp"
     INCLUDE_DIRS "."

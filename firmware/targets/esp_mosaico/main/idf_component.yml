@@ -4,6 +4,8 @@ dependencies:
   # Keeping both dependencies in the first pass preserves the locked graph.
   espressif/esp_lvgl_adapter: "0.6.2"
   lvgl/lvgl: "^9.5.0,<9.6.0"
+  # The display adapter is required before BSP sdkconfig rules can be evaluated.
+  espressif/esp_lvgl_adapter: "0.6.2"
   espressif/esp_video: "2.5.0"
   espressif/hand_detect: "0.2.0"
   espressif/hand_gesture_recognition: "0.2.0"

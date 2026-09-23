@@ -578,6 +578,6 @@ direct_dependencies:
 - idf
 - lvgl/lvgl
 - tangyumei3535/bmm150_sensorapi
-manifest_hash: e9597de848f4dedfd77d40c2df27a3229221ce044985973fb9e4d7ee9873d515
+manifest_hash: 53e3bd813b8217d5baee702eb587a7358830bd13a6fd85c8f6f41b0109f559f2
 target: esp32s31
 version: 3.0.0

@@ -40,9 +40,9 @@ eim run "idf.py -C firmware/targets/esp_mosaico build" v6.1
 
 后续开发入口：[参考仓库、固定版本与代码导航](CAMERA_UPSTREAM.md#repository-reference-map)；[交互设计与实施记录](../../../docs/design/mosaico-gesture-input.md)。
 
-左槽 CameraBoard（OV3640 或 SC101IOT，自动识别）可选开启本地手势：左挥或上挥上一页、右挥或下挥下一页，时钟中首挥只恢复原页；👌 OK 稳定保持约 500 ms 进入时钟。设置中的 `CAMERA` 开关默认关闭，切换后需 `SAVE`；开关打开时顶栏显示摄像头标识。Type-C 口是 USB OTG，只在 ROM 下载模式下枚举，应用日志只从 UART0（右侧排针 H1 的 15 脚 TX0 / GPIO58，或底板背面调试焊盘 TX）输出。图像仅在本机处理。
+左槽 CameraBoard（OV3640 或 SC101IOT，自动识别）可选开启本地手势：左挥或上挥上一页、右挥或下挥下一页，时钟中首挥只恢复原页；👌 OK 稳定保持约 500 ms 进入时钟。设置中的 `CAMERA` 开关默认关闭，切换后需 `SAVE`；开关打开时顶栏显示摄像头标识。亮度、自动时钟超时和相机开关作为一条 NVS 记录保存；记录缺失或无效时使用默认显示设置并关闭相机。Type-C 口是 USB OTG，只在 ROM 下载模式下枚举，应用日志只从 UART0（右侧排针 H1 的 15 脚 TX0 / GPIO58，或底板背面调试焊盘 TX）输出。图像仅在本机处理。
 
-模型与代码内嵌同一应用，首次从旧 4 MiB 分区升级必须有线迁移。保留设置时使用分段烧录，不能用填充后的完整镜像替代。依赖来源见 [CAMERA_UPSTREAM.md](CAMERA_UPSTREAM.md)，安装、恢复与实机验证见[手势验收指南](../../../docs/validation/mosaico-gestures.md)。当前仅通过软件测试和构建；相机方向、识别率、性能、功耗和提示布局仍待设备验收。
+模型与代码内嵌同一应用，在当前 7 MiB 双槽分区中共同进行 OTA 更新与回滚。有线更新应用并保留设置时使用分段烧录，不能用填充后的完整镜像替代。依赖来源见 [CAMERA_UPSTREAM.md](CAMERA_UPSTREAM.md)，安装、恢复与实机验证见[手势验收指南](../../../docs/validation/mosaico-gestures.md)。当前仅通过软件测试和构建；相机方向、识别率、性能、功耗和提示布局仍待设备验收。
 
 ### 显示刷新
 
@@ -74,7 +74,7 @@ TE 信号缺失时最多等待 25 ms 后继续刷新，并在超时、恢复状�
 eim run "idf.py -C firmware/targets/esp_mosaico/test_apps/logic build" v6.1
 ```
 
-覆盖本目标独有的 `local_clock`、`orientation`、手势轨迹/动作路由和图像坐标转换。共享面板行为由 `firmware/test_apps/panel_state` 覆盖。没有实机时该命令只证明测试镜像编译通过。
+覆盖本目标独有的 `local_clock`、`orientation`、手势轨迹/动作路由、图像坐标转换和设置持久化。共享面板行为由 `firmware/test_apps/panel_state` 覆盖。没有实机时该命令只证明测试镜像编译通过。
 
 ## 后续步骤
 
