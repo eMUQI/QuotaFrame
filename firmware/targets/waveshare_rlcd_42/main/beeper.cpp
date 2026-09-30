@@ -22,7 +22,7 @@ struct Reg {
 // ES8311 register values for DAC-only slave operation with MCLK = 4.096 MHz and fs = 16 kHz,
 // derived from esp_codec_dev 1.3.5 (es8311_open, es8311_config_sample, es8311_start).
 constexpr Reg kSetup[] = {
-    {0x44, 0x08}, {0x44, 0x08}, // I2C noise immunity; the first write after power-up may fail.
+    {0x44, 0x08},               // I2C noise immunity.
     {0x01, 0x30}, {0x02, 0x00}, {0x03, 0x10}, {0x16, 0x24}, {0x04, 0x10}, {0x05, 0x00},
     {0x0b, 0x00}, {0x0c, 0x00}, {0x10, 0x1f}, {0x11, 0x7f},
     {0x00, 0x80},               // Slave mode, power on.
@@ -73,6 +73,8 @@ bool Beeper::begin(i2c_master_bus_handle_t bus) {
     // The codec's clock manager needs MCLK running while it is configured.
     if (i2s_channel_enable(tx_) != ESP_OK)
         return false;
+    // The first transaction after codec power-up may fail; the table repeats this register.
+    write(kSetup[0].reg, kSetup[0].value);
     bool ok = true;
     for (const auto &r : kSetup)
         ok = write(r.reg, r.value) && ok;

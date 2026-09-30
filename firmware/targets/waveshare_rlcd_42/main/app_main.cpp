@@ -84,8 +84,8 @@ extern "C" void app_main() {
                             &ota, page_name, nullptr, true, true};
     ESP_ERROR_CHECK(ble.start(events, config));
 
-    uint64_t next_poll = 0, next_frame = 0, error_until = 0, reboot_at = 0;
-    OtaError shown_error = OtaError::None;
+    uint64_t next_poll = 0, next_frame = 0, reboot_at = 0;
+    RetainedOtaFailure shown_failure;
     bool force = true;
     Page clock_return = Page::Home;
     while (true) {
@@ -94,13 +94,11 @@ extern "C" void app_main() {
         ota.tick(view.now_ms);
         const OtaSnapshot snapshot = ota.snapshot();
         apply_ota(snapshot);
-        if (snapshot.error != shown_error) {
-            shown_error = snapshot.error;
-            error_until = view.now_ms + kOtaErrorVisibleMs;
+        if (retain_ota_failure(snapshot, shown_failure, view.now_ms))
             redraw = true;
-        }
-        view.ota.error = shown_error != OtaError::None && view.now_ms < error_until
-                             ? ota_error_presentation(shown_error).title
+        view.ota.error = shown_failure.error != OtaError::None &&
+                                 view.now_ms - shown_failure.started_ms < kOtaErrorVisibleMs
+                             ? ota_error_presentation(shown_failure.error).title
                              : nullptr;
         if (snapshot.phase == OtaPhase::Rebooting) {
             // Leave the RESTARTING frame on the panel briefly before the reset.
