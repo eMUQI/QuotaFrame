@@ -172,21 +172,20 @@ jobs:
         run: |
           . "$IDF_PATH/export.sh"
 
-          for project in ${{ matrix.paths }}; do
-            if [ "${{ matrix.check-lockfile }}" = "true" ]; then
-              sha256sum "$project/dependencies.lock" > lockfile.sha256
-            fi
+          project="${{ matrix.path }}"
+          if [ "${{ matrix.check-lockfile }}" = "true" ]; then
+            sha256sum "$project/dependencies.lock" > lockfile.sha256
+          fi
 
-            idf.py -C "$project" build
+          idf.py -C "$project" build
 
-            if [ "${{ matrix.check-lockfile }}" = "true" ]; then
-              expected=$(cut -d ' ' -f1 lockfile.sha256)
-              actual=$(sha256sum "$project/dependencies.lock" | cut -d ' ' -f1)
-              rm lockfile.sha256
-              if [ "$actual" != "$expected" ]; then
-                git diff -- "$project/dependencies.lock"
-                echo "::error::$project/dependencies.lock changed during the build"
-                exit 1
-              fi
+          if [ "${{ matrix.check-lockfile }}" = "true" ]; then
+            expected=$(cut -d ' ' -f1 lockfile.sha256)
+            actual=$(sha256sum "$project/dependencies.lock" | cut -d ' ' -f1)
+            rm lockfile.sha256
+            if [ "$actual" != "$expected" ]; then
+              git diff -- "$project/dependencies.lock"
+              echo "::error::$project/dependencies.lock changed during the build"
+              exit 1
             fi
-          done
+          fi

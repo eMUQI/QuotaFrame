@@ -41,37 +41,35 @@ def release_matrix() -> dict[str, list[dict[str, object]]]:
 def ci_matrix() -> dict[str, list[dict[str, object]]]:
     versions = tuple(dict.fromkeys(target.idf_version for target in TARGETS))
     entries: list[dict[str, object]] = []
-    # Every test application for a toolchain shares one job: each build is
-    # short, while Actions bills the container pull, checkout and cache restore
-    # separately for every job it starts.
     for version in versions:
         suffix = "" if len(versions) == 1 else f" (IDF {version})"
         cache_suffix = "" if len(versions) == 1 else f"-idf-{version}"
         test_apps = [
-            "firmware/test_apps/protocol",
-            "firmware/test_apps/ota",
-            "firmware/test_apps/panel_state",
+            ("protocol tests", "firmware/test_apps/protocol"),
+            ("ota tests", "firmware/test_apps/ota"),
+            ("panel_state tests", "firmware/test_apps/panel_state"),
         ]
         test_apps.extend(
-            app
+            (f"{target.label} {Path(app).name} tests", app)
             for target in TARGETS
             if target.idf_version == version
             for app in target.test_apps
         )
-        entries.append(
+        entries.extend(
             {
-                "name": f"test applications{suffix}",
-                "paths": " ".join(test_apps),
-                "cache-name": f"test-apps{cache_suffix}",
+                "name": f"{name}{suffix}",
+                "path": app,
+                "cache-name": f"{app.replace('/', '-').replace('_', '-')}{cache_suffix}",
                 "check-lockfile": False,
                 **toolchain(version),
             }
+            for name, app in test_apps
         )
     for target in TARGETS:
         entries.append(
             {
                 "name": f"{target.label} target",
-                "paths": target.firmware_project,
+                "path": target.firmware_project,
                 "cache-name": target.id.replace("_", "-"),
                 "check-lockfile": True,
                 **toolchain(target.idf_version),
