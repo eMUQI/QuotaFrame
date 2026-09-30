@@ -111,6 +111,18 @@ TARGETS: tuple[TargetDefinition, ...] = (
             asset="assets/devices/esp_mosaico.png",
         ),
     ),
+    TargetDefinition(
+        id="waveshare_rlcd_42",
+        label="ESP32-S3-RLCD-4.2",
+        firmware_project="firmware/targets/waveshare_rlcd_42",
+        idf_version="6.1",
+        ota_image="ws_rlcd_42.bin",
+        full_image="ws_rlcd_42_full.bin",
+        release_stem="waveshare-esp32-s3-rlcd-42",
+        image_chip_id=9,
+        ota_partition_bytes=4 * 1024 * 1024,
+        test_apps=("firmware/targets/waveshare_rlcd_42/test_apps/logic",),
+    ),
 )
 
 IDF_IMAGES: Mapping[str, str] = MappingProxyType(

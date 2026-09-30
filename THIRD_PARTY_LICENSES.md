@@ -1,6 +1,6 @@
 # Third-Party Licenses
 
-This file records every top-level component in the four production `dependencies.lock` files, vendored source and generated font subsets and the Python packages that are shipped in, or materially used to build, the native Bridge release artifacts. Firmware versions below are locked. Development dependency ranges remain declared in `bridge/pyproject.toml`. The human-readable release version sets live in `bridge/release-constraints-windows.txt` and `bridge/release-constraints-macos.txt`, while native release builds actually install external packages from the platform-specific `bridge/release-lock-windows.txt` and `bridge/release-lock-macos.txt` files, which pin both package versions and the SHA-256 of the exact compatible wheels. The Python versions listed below are the release-lock values, not the broader development ranges.
+This file records every top-level component in the maintained targets’ `dependencies.lock` files, vendored source and generated font subsets and the Python packages that are shipped in, or materially used to build, the native Bridge release artifacts. Firmware versions below are locked. Development dependency ranges remain declared in `bridge/pyproject.toml`. The human-readable release version sets live in `bridge/release-constraints-windows.txt` and `bridge/release-constraints-macos.txt`, while native release builds actually install external packages from the platform-specific `bridge/release-lock-windows.txt` and `bridge/release-lock-macos.txt` files, which pin both package versions and the SHA-256 of the exact compatible wheels. The Python versions listed below are the release-lock values, not the broader development ranges.
 
 For ESP Component Registry entries, `Registry license` is the API value for the exact locked version. When that value is `Custom`, `SPDX conclusion` is derived from the linked license text rather than presented as Registry metadata. The source and notice links are version-specific where available.
 
@@ -233,6 +233,14 @@ For ESP Component Registry entries, `Registry license` is the API value for the 
 - Source: https://github.com/waveshareteam/ESP32-S3-ePaper-3.97/tree/9b12d40731a80213b927ee8a421cae4082952819/ESP-IDF/01_E-Paper_Example/components/epaper_port
 - License: not declared. The repository has no license file and the source files carry no license header at this commit; redistribution terms are unconfirmed.
 - Local copy and modifications: `firmware/targets/waveshare_epaper_397/main/vendor/` (see `UPSTREAM.md`)
+
+## Waveshare RLCD 4.2 display and audio register configurations
+
+- ST7305 reference source: [Waveshare factory driver](https://github.com/waveshareteam/ESP32-S3-RLCD-4.2/blob/eb1f63427d735a22b9c30e22fa63ebddae1834d3/02_Example/ESP-IDF/10_FactoryProgram/components/port_bsp/display_bsp.cpp); the original import revision was not recorded.
+- ST7305 license/notice: [Apache-2.0, Copyright 2026 Waveshare](https://github.com/waveshareteam/ESP32-S3-RLCD-4.2/blob/eb1f63427d735a22b9c30e22fa63ebddae1834d3/LICENSE).
+- ES8311 register source: [esp_codec_dev 1.3.5](https://github.com/espressif/esp-adf/blob/9b35bca1a6db3d989936f228d6e28f33089fa9e7/components/esp_codec_dev/device/es8311/es8311.c).
+- ES8311 license/notice: [Apache-2.0](https://components.espressif.com/components/espressif/esp_codec_dev/versions/1.3.5/license), Copyright 2023 Espressif Systems (Shanghai) CO LTD.
+- Local adaptations and scope: [RLCD driver provenance](firmware/targets/waveshare_rlcd_42/UPSTREAM.md).
 
 ## `waveshare/esp32_s3_touch_amoled_2_16`
 

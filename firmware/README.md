@@ -63,6 +63,7 @@ eim run "idf.py -C firmware/targets/<target> merge-bin -o <full-image>" v6.1
 | `esp32_s3_touch_amoled_216` | `ws_usage_panel.bin` | `ws_usage_panel_full.bin` |
 | `waveshare_epaper_397` | `ws_epaper_397.bin` | `ws_epaper_397_full.bin` |
 | `esp_mosaico` | `mosaico_usage_panel.bin` | `mosaico_usage_panel_full.bin` |
+| `waveshare_rlcd_42` | `ws_rlcd_42.bin` | `ws_rlcd_42_full.bin` |
 
 产物位于各目标的 `build/`。ESP-Mosaico 首次配置需启用 preview target，见[目标说明](targets/esp_mosaico/README.md)；墨水屏刷新、输入和诊断见[ePaper 说明](targets/waveshare_epaper_397/README.md)。
 
