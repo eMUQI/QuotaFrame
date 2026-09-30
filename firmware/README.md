@@ -37,7 +37,7 @@ Folder Push 本地快照原因见 [UPSTREAM.md](components/esp_desktop_buddy_fol
 | ESP32-S3-Touch-AMOLED-2.16 | 已维护 | Waveshare BSP、LVGL、触控标签和手势 |
 | ESP32-S3-ePaper-3.97 | 已维护 | 自绘帧缓冲、SSD1677 驱动、三向拨轮 |
 | ESP-Mosaico | 已维护 | 乐鑫 BSP、LVGL、触控标签和手势、AI 键 |
-| ESP32-S3-RLCD-4.2 | 已登记，部分实机验证 | 自绘帧缓冲、ST7305 驱动、KEY / BOOT 按键 |
+| ESP32-S3-RLCD-4.2 | 已维护 | 自绘帧缓冲、ST7305 驱动、KEY / BOOT 按键 |
 
 各目标的实机验收范围见 [verification.md](../docs/verification.md)。
 
