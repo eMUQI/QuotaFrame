@@ -15,6 +15,9 @@ constexpr int kLine = 14;
 constexpr int kChipPad = 4;
 // First content line, 10 px below the header rule.
 constexpr int kContentTop = 46;
+// Smallest pace excess, in percentage points, that the detail page reports as OVER. Smaller
+// deltas are within the rounding of whole-percent usage and the fixed window lengths.
+constexpr int kOverThreshold = 5;
 // Footer rule on pages with a footer line; the footer text follows 10 px below it.
 constexpr int kFooterRule = 252, kPortraitFooterRule = 340;
 
@@ -303,33 +306,49 @@ void Screens::focus(const View &v, int i) {
     const bool sp = short_present(s, v.link.encrypted), wp = week_present(s, v.link.encrypted);
     const int right = c_.width() - kLeft, column = 240;
     header(v, kNames[i], static_cast<int>(v.page));
+    const Paces pace = paces(v, i, sp, wp);
     char b[32];
-    // 116 px figures keep the percent field 17 px clear of the right column.
+    // Short window: 80 px figure, reset countdown and pace in the right column, then its bar.
     c_.text(kLeft, kContentTop, "SHORT", 2);
-    big_percent(kLeft, 70, sp ? s.short_window.used_percent : -1, 116);
-
+    big_percent(kLeft, 66, sp ? s.short_window.used_percent : -1, 80);
     c_.text(column, kContentTop, "RESET", 2);
     reset_countdown(v, i, false, b, sizeof(b));
     c_.text(column, 66, b, 3);
+    if (pace.short_pace.valid && pace.short_pace.delta >= kOverThreshold) {
+        snprintf(b, sizeof(b), "OVER +%d%%", pace.short_pace.delta);
+        chip(column, 110, b);
+    }
+    bar(kLeft, 156, right - kLeft, 18, sp ? s.short_window.used_percent : -1,
+        marker(pace.short_pace));
+    if (pace.short_pace.valid) {
+        char elapsed[16];
+        format_elapsed(pace.short_pace.elapsed_s, elapsed, sizeof(elapsed));
+        snprintf(b, sizeof(b), "ELAPSED %s", elapsed);
+        c_.text(kLeft, 184, b, 2);
+    }
+    if (age_label(v, i, b, sizeof(b)))
+        c_.text_right(right, 184, b, 2);
+
+    // Week window: the same row structure as Home with the elapsed time below its bar.
+    c_.dotted(kLeft, 208, right - kLeft);
     if (wp)
         snprintf(b, sizeof(b), "WEEK %u%%", s.week_window.used_percent);
     else
         snprintf(b, sizeof(b), "WEEK --");
-    c_.text(column, 104, b, 2);
-    reset_countdown(v, i, true, b, sizeof(b));
-    c_.text(column, 124, b, 3);
-    const Pace pace = paces(v, i, sp, false).short_pace;
-    if (pace.valid && pace.delta > 0) {
-        snprintf(b, sizeof(b), "PACE +%dPP", pace.delta);
-        chip(column, 166, b);
+    const int label = c_.text(kLeft, 218, b, 2);
+    if (pace.week_pace.valid && pace.week_pace.delta >= kOverThreshold) {
+        snprintf(b, sizeof(b), "OVER +%d%%", pace.week_pace.delta);
+        chip(kLeft + label + 12, 218, b);
     }
-
-    bar(kLeft, 212, right - kLeft, 26, sp ? s.short_window.used_percent : -1, marker(pace));
-    if (age_label(v, i, b, sizeof(b)))
-        c_.text(kLeft, 252, b, 2);
-    if (pace.valid) {
-        snprintf(b, sizeof(b), "5H ELAPSED %d%%", round_px(pace_fraction(pace) * 100));
-        c_.text_right(right, 252, b, 2);
+    reset_countdown(v, i, true, b, sizeof(b));
+    c_.text_right(right, 218, b, 2);
+    bar(kLeft, 244, right - kLeft, 14, wp ? s.week_window.used_percent : -1,
+        marker(pace.week_pace));
+    if (pace.week_pace.valid) {
+        char elapsed[16];
+        format_elapsed(pace.week_pace.elapsed_s, elapsed, sizeof(elapsed));
+        snprintf(b, sizeof(b), "ELAPSED %s", elapsed);
+        c_.text(kLeft, 268, b, 2);
     }
 }
 

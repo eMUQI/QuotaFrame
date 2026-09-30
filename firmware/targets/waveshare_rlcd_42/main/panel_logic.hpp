@@ -36,7 +36,7 @@ void format_short_countdown(const UsageWindow &window, uint32_t now_epoch, bool 
 /** Week countdown "5D 02:03"; "WAIT" once due; "--" without a reset. */
 void format_week_countdown(const UsageWindow &window, uint32_t now_epoch, char *out, size_t size);
 
-/** Elapsed duration as "3H36M". */
+/** Elapsed duration as "3H36M", or "2D 04H" from one day. */
 void format_elapsed(uint32_t seconds, char *out, size_t size);
 
 /** Sample age: "NOW" below a minute, then "12M AGO", then "3H AGO" from 100 minutes. */

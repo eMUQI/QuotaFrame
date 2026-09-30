@@ -48,7 +48,7 @@ The display uses the same SHORT / WEEK labels and used-percentage meaning as the
 | Page | Content |
 | --- | --- |
 | Home | Both services stacked; SHORT and WEEK usage bars with reset countdowns and elapsed-time markers |
-| Codex, Claude | One service in 116 px figures with RESET countdowns and a usage bar; PACE +NPP reports excess usage in percentage points, with an elapsed-time marker and a separate elapsed-time label |
+| Codex, Claude | One service: the SHORT window in 80 px figures with its RESET countdown, then SHORT and WEEK sections each with a usage bar, elapsed-time marker and elapsed time. OVER +N% marks usage at least 5 percentage points above the elapsed fraction of the window |
 | Trend | Last 24 hours from the TF card, 48 half-hour bars per service |
 | Clock | Time with seconds, date, SHTC3 temperature and humidity, compact usage bars |
 | Settings | Auto cycle, alert mode, seconds, rotation |
@@ -58,7 +58,7 @@ Text is at least 2x (14 px, 2.9 mm cap height) and strokes at least 2 px in both
 Layout follows one grid: content starts 14 px from the panel edge, the first line sits 10 px
 below the header rule, rows and footers are separated by 10 px, and inverted chips grow around
 their text so it stays on the same left edge as plain labels. Home uses 64 px figures level with
-the top of the SHORT bar and the bottom of the WEEK bar; detail uses 116 px figures. On Home the countdown sits to the right of its window
+the top of the SHORT bar and the bottom of the WEEK bar; detail uses 80 px figures. On Home the countdown sits to the right of its window
 label without a RESET prefix; the detail page labels it RESET. The header shows a chip only for
 OFFLINE, PAIRING and UPDATING; LINKED is the normal state and is not shown.
 

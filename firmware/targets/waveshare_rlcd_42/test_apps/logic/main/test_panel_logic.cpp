@@ -68,6 +68,8 @@ TEST_CASE("countdowns follow the design formats", "[format]")
     TEST_ASSERT_EQUAL_STRING("--", b);
     format_elapsed(12955, b, sizeof(b));
     TEST_ASSERT_EQUAL_STRING("3H35M", b);
+    format_elapsed(2 * 86400 + 4 * 3600 + 59 * 60, b, sizeof(b));
+    TEST_ASSERT_EQUAL_STRING("2D 04H", b);
     format_age(59, b, sizeof(b));
     TEST_ASSERT_EQUAL_STRING("NOW", b);
     format_age(120, b, sizeof(b));

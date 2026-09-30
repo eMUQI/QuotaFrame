@@ -60,8 +60,12 @@ void format_week_countdown(const UsageWindow &window, uint32_t now_epoch, char *
 }
 
 void format_elapsed(uint32_t seconds, char *out, size_t size) {
-    snprintf(out, size, "%luH%02luM", static_cast<unsigned long>(seconds / 3600),
-             static_cast<unsigned long>(seconds / 60 % 60));
+    if (seconds >= 86400)
+        snprintf(out, size, "%luD %02luH", static_cast<unsigned long>(seconds / 86400),
+                 static_cast<unsigned long>(seconds / 3600 % 24));
+    else
+        snprintf(out, size, "%luH%02luM", static_cast<unsigned long>(seconds / 3600),
+                 static_cast<unsigned long>(seconds / 60 % 60));
 }
 
 void format_age(uint32_t seconds, char *out, size_t size) {

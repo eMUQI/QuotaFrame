@@ -158,11 +158,11 @@ TEST_CASE("full usage stays clear of the neighbouring column", "[render]")
     u.short_window = {true, 100, false, 0};
     u.week_window = {true, 50, false, 0};
     TEST_ASSERT_TRUE(v.model.apply(u, 0));
-    // The percent field ends at x 222 on the detail page, before the column at x 240, and at
+    // The percent field ends at x 160 on the detail page, before the column at x 240, and at
     // x 130 on Home, before the bar column at x 148.
     screens.render(v);
-    for (int y = 70; y < 186; ++y)
-        for (int x = 223; x < 240; ++x)
+    for (int y = 66; y < 146; ++y)
+        for (int x = 161; x < 240; ++x)
             TEST_ASSERT_FALSE_MESSAGE(black(x, y), "Usage digits cross the column gutter");
     v.page = Page::Home;
     screens.render(v);
