@@ -116,6 +116,15 @@ TEST_CASE("trend advances offline and excludes expired or future samples", "[ren
     View v;
     v.page = Page::Trend;
     v.sd = true;
+    v.now_ms = 5000;
+    screens.render(v);
+    static uint8_t waiting[Canvas::kBytes];
+    memcpy(waiting, canvas.data(), sizeof(waiting));
+    v.trend_count = 1;
+    v.trend[0] = {1800000000, 100, 50, {}};
+    screens.render(v);
+    TEST_ASSERT_EQUAL_MEMORY(waiting, canvas.data(), sizeof(waiting));
+    v.now_ms = 0;
     UsageUpdate u;
     u.provider = Provider::Codex;
     u.state = SourceState::Ok;
@@ -143,6 +152,25 @@ TEST_CASE("trend advances offline and excludes expired or future samples", "[ren
     v.trend[0].epoch = u.sent_at + 49 * 3600;
     screens.render(v);
     TEST_ASSERT_EQUAL_MEMORY(empty, canvas.data(), sizeof(empty));
+}
+
+TEST_CASE("long OTA versions stay clear of the progress figure", "[render]")
+{
+    Screens screens(canvas);
+    View v;
+    v.ota.stage = OtaStage::Receiving;
+    v.ota.size = 100;
+    v.ota.offset = 65;
+    screens.render(v);
+    static uint8_t baseline[Canvas::kBytes];
+    memcpy(baseline, canvas.data(), sizeof(baseline));
+    strcpy(v.ota.version, "1.2.3-abcdefghijklmnopq");
+    screens.render(v);
+    for (int y = 66; y < 87; ++y)
+        for (int x = 250; x < 386; ++x) {
+            const int n = y * Canvas::kNativeWidth + x;
+            TEST_ASSERT_EQUAL_INT(bool(baseline[n >> 3] & (0x80 >> (n & 7))), black(x, y));
+        }
 }
 
 TEST_CASE("full usage stays clear of the neighbouring column", "[render]")

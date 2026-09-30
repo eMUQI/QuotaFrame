@@ -128,7 +128,7 @@ void Screens::header(const View &v, const char *title, int page) {
     battery(v, edge);
     const char *status = link_status(v);
     // LINKED is the normal state and is not shown; every other state gets a chip.
-    if (status[0] != 'L') {
+    if (v.link.has_passkey || v.ota.stage != OtaStage::Idle || !v.link.encrypted) {
         const int tw = Canvas::text_width(status, 2);
         edge -= 8 + kChipPad + tw;
         chip(edge, 14, status);
@@ -395,7 +395,7 @@ void Screens::trend(const View &v) {
                                     v.model.estimated_epoch(Provider::Claude, v.now_ms));
     // Match the sampling buckets while allowing the time axis to advance offline.
     const auto sample_age = [epoch](const TrendPoint &point) -> uint32_t {
-        if (!epoch || point.epoch > epoch)
+        if (epoch < kMinTrendEpoch || point.epoch > epoch)
             return kTrendPoints;
         return epoch / kTrendIntervalSeconds - point.epoch / kTrendIntervalSeconds;
     };
@@ -420,7 +420,9 @@ void Screens::trend(const View &v) {
         c_.text_right(x0 + span, label, b, 2);
         c_.fill(x0, base, span, 2);
         if (peak < 0) {
-            const char *empty = v.sd ? "NO DATA YET" : "NO TF CARD";
+            const char *empty = !v.sd ? "NO TF CARD"
+                                : epoch < kMinTrendEpoch ? "WAITING FOR TIME"
+                                                         : "NO DATA YET";
             c_.text((c_.width() - Canvas::text_width(empty, 2)) / 2, base - 45, empty, 2);
             continue;
         }
@@ -592,7 +594,9 @@ void Screens::ota(const View &v) {
         v.ota.size ? static_cast<int>(std::min<uint64_t>(100, v.ota.offset * 100ULL / v.ota.size)) : 0;
     const int shown = percent / 5 * 5, figure = big_percent_width(72);
     const int available = portrait_ ? right - kLeft : right - kLeft - figure - 12;
-    c_.text(kLeft, 66, v.ota.version, Canvas::text_width(v.ota.version, 3) <= available ? 3 : 2);
+    const int version_scale = Canvas::text_width(v.ota.version, 3) <= available ? 3
+                              : Canvas::text_width(v.ota.version, 2) <= available ? 2 : 1;
+    c_.text(kLeft, 66, v.ota.version, version_scale);
     if (portrait_)
         big_percent(kLeft, 104, shown, 72);
     else

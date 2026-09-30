@@ -2,6 +2,7 @@
 #include "driver/gpio.h"
 #include "driver/sdmmc_host.h"
 #include "esp_log.h"
+#include "esp_rom_sys.h"
 #include "esp_vfs_fat.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -95,7 +96,8 @@ void Board::read_environment(View &v) {
     const uint8_t wake[] = {0x35, 0x17}, measure[] = {0x78, 0x66}, sleep[] = {0xb0, 0x98};
     uint8_t data[6]{};
     bool ok = i2c_master_transmit(sht_, wake, 2, 100) == ESP_OK;
-    vTaskDelay(pdMS_TO_TICKS(1));
+    // The SHTC3 requires up to 240 us to wake; one RTOS tick has no minimum elapsed duration.
+    esp_rom_delay_us(300);
     ok = ok && i2c_master_transmit(sht_, measure, 2, 100) == ESP_OK;
     vTaskDelay(pdMS_TO_TICKS(15));
     ok = ok && i2c_master_receive(sht_, data, 6, 100) == ESP_OK;
@@ -217,7 +219,7 @@ void Board::sample_trend(View &v) {
                 if (!bytes)
                     break;
                 if (bytes != sizeof(p) || v.trend_count == kTrendPoints ||
-                    p.epoch < 1700000000 || (p.codex > 100 && p.codex != 255) ||
+                    p.epoch < kMinTrendEpoch || (p.codex > 100 && p.codex != 255) ||
                     (p.claude > 100 && p.claude != 255)) {
                     valid = false;
                     break;
@@ -233,7 +235,7 @@ void Board::sample_trend(View &v) {
     }
     const uint32_t epoch = std::max(v.model.estimated_epoch(Provider::Codex, v.now_ms),
                                     v.model.estimated_epoch(Provider::Claude, v.now_ms));
-    if (!epoch || !v.link.encrypted ||
+    if (epoch < kMinTrendEpoch || !v.link.encrypted ||
         (v.trend_count &&
          epoch / kTrendIntervalSeconds <= v.trend[v.trend_count - 1].epoch / kTrendIntervalSeconds))
         return;

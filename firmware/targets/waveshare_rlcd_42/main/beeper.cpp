@@ -11,6 +11,7 @@ constexpr uint8_t kCodecAddress = 0x18;
 constexpr gpio_num_t kMclk = GPIO_NUM_16, kBclk = GPIO_NUM_9, kWs = GPIO_NUM_45, kDout = GPIO_NUM_8,
                      kAmplifier = GPIO_NUM_46;
 constexpr uint32_t kSampleRate = 16000;
+constexpr int kDmaDescriptors = 6, kDmaFrames = 240;
 constexpr int kToneHz = 2000;          // 8 samples per period at 16 kHz.
 constexpr int kToneMs = 120, kGapMs = 80, kTones = 3;
 // DAC volume register: 0xbf is 0 dB, 0.5 dB per step.
@@ -56,6 +57,8 @@ bool Beeper::begin(i2c_master_bus_handle_t bus) {
     if (i2c_master_bus_add_device(bus, &device, &codec_) != ESP_OK)
         return false;
     i2s_chan_config_t channel = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
+    channel.dma_desc_num = kDmaDescriptors;
+    channel.dma_frame_num = kDmaFrames;
     channel.auto_clear = true;
     if (i2s_new_channel(&channel, &tx_, nullptr) != ESP_OK)
         return false;
@@ -119,14 +122,26 @@ void Beeper::play() {
     if (i2s_channel_enable(tx_) != ESP_OK)
         return;
     gpio_set_level(kAmplifier, 1);
-    size_t written;
-    for (int t = 0; t < kTones; ++t) {
-        for (int f = 0; f < kToneFrames; f += kPeriod * 8)
-            i2s_channel_write(tx_, tone, sizeof(tone), &written, pdMS_TO_TICKS(100));
-        for (int f = 0; f < kGapFrames; f += kPeriod * 8)
-            i2s_channel_write(tx_, silence, sizeof(silence), &written, pdMS_TO_TICKS(100));
+    const auto send = [&](const int16_t *samples, int frames) {
+        for (int f = 0; f < frames; f += kPeriod * 8) {
+            size_t written = 0;
+            if (i2s_channel_write(tx_, samples, sizeof(tone), &written, 100) != ESP_OK ||
+                written != sizeof(tone))
+                return false;
+        }
+        return true;
+    };
+    // Padding exceeds the entire DMA ring, leaving at least 10 ms of silence at the output
+    // for amplifier settling before the tone and ensuring the final tone has played at shutdown.
+    constexpr int kPaddingFrames = kDmaDescriptors * kDmaFrames + kSampleRate / 100;
+    bool ok = send(silence, kPaddingFrames);
+    for (int t = 0; ok && t < kTones; ++t) {
+        ok = send(tone, kToneFrames) &&
+             send(silence, t == kTones - 1 ? kPaddingFrames : kGapFrames);
     }
     gpio_set_level(kAmplifier, 0);
     i2s_channel_disable(tx_);
+    if (!ok)
+        ESP_LOGW("rlcd42", "Alert playback stopped after an incomplete I2S write");
 }
 } // namespace usage_panel::rlcd

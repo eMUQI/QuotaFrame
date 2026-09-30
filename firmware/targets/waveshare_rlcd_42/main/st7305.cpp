@@ -162,14 +162,14 @@ bool St7305::begin() {
     return true;
 }
 
-bool St7305::show(const Canvas &canvas, bool force) {
+bool St7305::show(const Canvas &canvas) {
     // DMA owns frame_ until the completion callback releases it.
     if (xSemaphoreTake(done_, pdMS_TO_TICKS(200)) != pdTRUE) {
         ESP_LOGW("rlcd42", "Frame transfer did not complete");
         return false;
     }
     pack(canvas.data(), frame_);
-    if (!force && has_frame_ && memcmp(frame_, displayed_, kFrameBytes) == 0) {
+    if (has_frame_ && memcmp(frame_, displayed_, kFrameBytes) == 0) {
         xSemaphoreGive(done_);
         return false;
     }

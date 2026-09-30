@@ -83,7 +83,7 @@ public:
      */
     DisplayState display_state(Provider provider, bool connected) const;
 
-    /** Estimates current UTC epoch seconds from sent_at plus monotonic elapsed time. */
+    /** Estimates UTC epoch seconds from sent_at and elapsed time; returns 0 without an anchor. */
     uint32_t estimated_epoch(Provider provider, uint64_t now_ms) const;
 
 private:

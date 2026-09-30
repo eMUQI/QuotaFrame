@@ -127,6 +127,14 @@ int main(int argc, char **argv) {
     ota.ota.size = 1900000;
     ota.ota.offset = 1240000;
     render(ota, "09_ota");
+    snprintf(ota.ota.version, sizeof(ota.ota.version), "1.2.3-abcdefghijklmnopq");
+    render(ota, "09_ota_long_version");
+
+    View waiting = t;
+    waiting.model = UsageModel{};
+    waiting.link = {};
+    waiting.now_ms = 5000;
+    render(waiting, "04_trend_waiting_for_time");
 
     View p = design_view();
     p.settings.rotation = static_cast<uint8_t>(Rotation::Portrait);

@@ -145,6 +145,12 @@ TEST_CASE("alert raises once, dismisses and re-arms below the threshold", "[aler
     TEST_ASSERT_TRUE(nav.update_alert(v));
     TEST_ASSERT_EQUAL_INT(1, v.alert);
     TEST_ASSERT_FALSE(nav.update_alert(v));
+    v.link.encrypted = false;
+    TEST_ASSERT_FALSE(nav.update_alert(v));
+    TEST_ASSERT_EQUAL_INT(-1, v.alert);
+    v.link.encrypted = true;
+    TEST_ASSERT_FALSE(nav.update_alert(v));
+    TEST_ASSERT_EQUAL_INT(1, v.alert);
     nav.input(Input::Key, v, 0);
     TEST_ASSERT_TRUE(nav.update_alert(v));
     TEST_ASSERT_EQUAL_INT(0, v.alert);

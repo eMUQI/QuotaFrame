@@ -23,6 +23,8 @@ are not included.
 The register table is derived from `es8311_open`, `es8311_config_sample` and `es8311_start`.
 The local implementation fixes playback to DAC-only slave operation at 16 kHz with 256 fs MCLK,
 uses ESP-IDF I2C/I2S directly, and generates a short alert tone on a dedicated FreeRTOS task.
+Leading and trailing silence exceed the DMA ring capacity to allow amplifier settling and
+complete audible playback before the output is disabled. Incomplete I2S writes stop playback.
 It does not include the upstream codec abstraction, microphone path or variable-rate API.
 
 The repository includes the [Apache-2.0 license text](../../components/esp-mosaico-bsp/LICENSE).

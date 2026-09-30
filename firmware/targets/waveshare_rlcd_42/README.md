@@ -91,6 +91,8 @@ The Bridge screen-toggle command switches to and from Clock; page commands step 
 
 `ALERT 95%` selects OFF, PAGE (full-screen page) or +BEEP (page plus three 2 kHz tones
 through the ES8311 codec and speaker amplifier). The tone plays once when an alert is raised.
+Reconnecting restores an undismissed alert without repeating its tone. A provider's alert
+re-arms after its warning level falls below 2 (usage below 93% with hysteresis).
 The codec is configured for DAC-only slave operation at 16 kHz; its register values are derived
 from Espressif `esp_codec_dev` 1.3.5 (Apache-2.0); fixed source links, notices and local adaptations
 are recorded in [UPSTREAM.md](UPSTREAM.md).
@@ -115,6 +117,9 @@ not registered (the voltage cannot distinguish battery from USB power).
 The trend requires a mounted FAT TF card; absence is nonfatal. Its record format matches the
 ePaper 3.97 target: up to 48 timestamped records in `trend.bin`, with `trend.bak` used when the
 primary file is missing, empty, truncated, oversized, unreadable or contains an invalid record.
+Sampling starts only after a Bridge publication supplies a valid epoch. Until then, the trend
+page shows `WAITING FOR TIME`, including when stored history is present; stored timestamps
+are not used as the current time.
 
 ## Hardware verification checklist
 

@@ -28,6 +28,7 @@ struct TrendPoint {
 };
 constexpr int kTrendPoints = 48;
 constexpr uint32_t kTrendIntervalSeconds = 1800;
+constexpr uint32_t kMinTrendEpoch = 1700000000;
 
 struct LinkState {
     bool connected = false, encrypted = false, has_passkey = false;

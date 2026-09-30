@@ -19,13 +19,13 @@ class St7305 {
     /** Initializes SPI3, resets the controller and runs the panel initialization sequence. */
     bool begin();
     /**
-     * Transfers `canvas` unless it matches the last submitted frame; `force` bypasses this check.
+     * Transfers `canvas` unless it matches the last submitted frame.
      * Waits up to 200 ms for the previous DMA transfer, then up to 100 ms for the next TE
      * edge. A missing TE edge permits an unsynchronized write; a DMA timeout skips the frame
      * without modifying the transfer buffer.
      * @return true when a transfer was started; false when unchanged or DMA is still busy.
      */
-    bool show(const Canvas &canvas, bool force = false);
+    bool show(const Canvas &canvas);
 
   private:
     esp_lcd_panel_io_handle_t io_ = nullptr;

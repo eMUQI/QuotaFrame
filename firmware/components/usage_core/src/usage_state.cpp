@@ -45,6 +45,7 @@ const ProviderSnapshot& UsageModel::snapshot(Provider provider) const
 uint32_t UsageModel::estimated_epoch(Provider provider, uint64_t now_ms) const
 {
     const auto& item = snapshot(provider);
+    if (!item.sent_at) return 0;
     // sent_at supplies an epoch anchor while the monotonic clock supplies
     // elapsed time; this avoids depending on a device RTC for usage countdowns.
     const uint64_t elapsed = now_ms > item.received_ms ? (now_ms - item.received_ms) / 1000u : 0;

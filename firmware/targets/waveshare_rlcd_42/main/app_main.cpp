@@ -86,7 +86,6 @@ extern "C" void app_main() {
 
     uint64_t next_poll = 0, next_frame = 0, reboot_at = 0;
     RetainedOtaFailure shown_failure;
-    bool force = true;
     Page clock_return = Page::Home;
     while (true) {
         view.now_ms = esp_timer_get_time() / 1000;
@@ -138,10 +137,8 @@ extern "C" void app_main() {
                 if (!ota.busy() && !view.link.has_passkey && view.page != Page::Settings) {
                     const bool portrait =
                         view.settings.rotation == static_cast<uint8_t>(Rotation::Portrait);
-                    // The ring is a cycle, so one step back is (ring length - 1) steps forward.
-                    const int steps = event.previous_page ? (portrait ? 1 : kRingPages - 1) : 1;
-                    for (int i = 0; i < steps; ++i)
-                        view.page = Navigator::next(view.page, portrait);
+                    view.page = event.previous_page ? Navigator::previous(view.page, portrait)
+                                                    : Navigator::next(view.page, portrait);
                 }
                 break;
             }
@@ -173,12 +170,9 @@ extern "C" void app_main() {
                 if (input == Input::Key || input == Input::Boot)
                     ble.reset_pairing();
             } else {
-                const Settings before = view.settings;
                 const NavResult r = nav.input(input, view, view.now_ms);
                 if (r.save)
                     view.save_error = !board.save(view.settings);
-                if (before.rotation != view.settings.rotation)
-                    force = true;
             }
         }
         if (!ota.busy() && !view.link.has_passkey)
@@ -192,10 +186,9 @@ extern "C" void app_main() {
         }
         location = view.page;
         // Frames are composed at a fixed cadence so countdowns tick; unchanged frames are not sent.
-        if (redraw || force || view.now_ms >= next_frame) {
+        if (redraw || view.now_ms >= next_frame) {
             screens.render(view);
-            panel.show(canvas, force);
-            force = false;
+            panel.show(canvas);
             next_frame = view.now_ms + kFrameIntervalMs;
         }
         // BLE startup is asynchronous; verification retries until the service is ready.

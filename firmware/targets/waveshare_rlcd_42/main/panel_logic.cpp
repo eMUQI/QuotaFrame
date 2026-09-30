@@ -179,8 +179,10 @@ NavResult Navigator::input(Input in, View &v, uint64_t now_ms) {
 bool Navigator::update_alert(View &v) {
     int best = -1;
     for (int i = 0; i < 2; ++i) {
-        if (v.warning[i] < 2)
+        if (v.warning[i] < 2) {
             dismissed_[i] = false;
+            announced_[i] = false;
+        }
         const auto &s = v.model.snapshot(i ? Provider::Claude : Provider::Codex);
         if (v.warning[i] == 2 && !dismissed_[i] && v.link.encrypted &&
             (best < 0 || s.short_window.used_percent >
@@ -190,7 +192,9 @@ bool Navigator::update_alert(View &v) {
     }
     if (v.settings.alert == static_cast<uint8_t>(AlertMode::Off))
         best = -1;
-    const bool raised = best >= 0 && best != v.alert;
+    const bool raised = best >= 0 && !announced_[best];
+    if (best >= 0)
+        announced_[best] = true;
     v.alert = best;
     return raised;
 }

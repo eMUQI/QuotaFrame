@@ -81,7 +81,7 @@ class Navigator {
     /**
      * Updates the alert shown in `view.alert` from the warning levels.
      * A dismissed alert stays hidden until its provider drops below level 2.
-     * @return true when a new alert was raised.
+     * @return true on the first presentation for a provider at level 2; reconnects do not re-arm it.
      */
     bool update_alert(View &view);
 
@@ -94,6 +94,7 @@ class Navigator {
   private:
     Page return_page_ = Page::Home;
     std::array<bool, 2> dismissed_{};
+    std::array<bool, 2> announced_{};
     uint64_t last_step_ms_ = 0;
 };
 
