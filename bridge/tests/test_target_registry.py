@@ -50,6 +50,14 @@ class TargetRegistryTests(unittest.TestCase):
                 "mosaico_usage_panel_full.bin",
                 "espressif-esp-mosaico",
             ),
+            "waveshare_rlcd_42": (
+                "ESP32-S3-RLCD-4.2",
+                "firmware/targets/waveshare_rlcd_42",
+                "6.1",
+                "ws_rlcd_42.bin",
+                "ws_rlcd_42_full.bin",
+                "waveshare-esp32-s3-rlcd-42",
+            ),
         }
         self.assertEqual(set(expected), set(TARGETS_BY_ID))
         self.assertEqual(
@@ -59,6 +67,7 @@ class TargetRegistryTests(unittest.TestCase):
                 "waveshare_amoled_216": 9,
                 "waveshare_epaper_397": 9,
                 "esp_mosaico": 32,
+                "waveshare_rlcd_42": 9,
             },
         )
         for target_id, contract in expected.items():

@@ -27,8 +27,11 @@
 
 ePaper 3.97 与 ESP-Mosaico 的详细说明见 [ePaper 3.97 固件说明](../firmware/targets/waveshare_epaper_397/README.md) 与 [ESP-Mosaico 固件说明](../firmware/targets/esp_mosaico/README.md)。
 
+RLCD 4.2 使用 400×300 黑白反射式 LCD，提供总览、Codex / Claude 详情、趋势、时钟和设置页；竖屏仅在总览和时钟间轮换。它支持 RTC、温湿度显示、电压估算电量，以及需 FAT TF 卡的 48 点趋势。屏幕方向由设置选择，未接入 Web 烧录器。当前实机验证范围和完整操作见 [RLCD 4.2 说明](../firmware/targets/waveshare_rlcd_42/README.md)。
+
 ## 屏幕快捷操作
 
+- **RLCD 4.2**：KEY 上一页，BOOT 下一页，长按 KEY 进入或退出设置；设置中 KEY 选择项目、BOOT 修改选项。KEY 可关闭当前用量告警。OTA 待确认时 KEY 确认，长按 KEY 拒绝。
 - **480×480 触屏设置（微雪 AMOLED 2.16 与 ESP-Mosaico）**：长按触屏约 0.8 秒进入，两块板共用同一套设置。亮度即时预览；AUTO CLOCK 可选择 OFF、1、5、10、30 分钟。SAVE 保存并在重启后保留，CANCEL 撤销未保存调整。OFF 仅关闭自动进入时钟，托盘/菜单栏左键仍可主动切换；微雪另有 PWR 侧键，ESP-Mosaico 另有 AI 键。
 - **Windows 托盘与 macOS 菜单栏**：左键切换支持设备的时钟；鼠标悬停在 Bridge 图标上滚动，上滚查看上一页，下滚查看下一页，页面集合与顺序由各设备决定。操作作用于所有已连接且支持该命令的设备；设备处于时钟时会先回到额度页面。快速连续滚动会限速，OTA 期间不执行翻页。
 - 滚轮翻页要求设备通告 `screen.page.v1`；未通告的设备只接收其支持的命令。

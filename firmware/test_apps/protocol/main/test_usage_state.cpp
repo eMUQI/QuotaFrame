@@ -82,10 +82,14 @@ TEST_CASE("countdown formatting covers all ranges", "[usage]")
 TEST_CASE("initial failure stays empty and partial failures preserve window selection", "[usage]")
 {
     UsageModel model;
+    TEST_ASSERT_EQUAL_UINT32(0, model.estimated_epoch(Provider::Codex, 5000));
+    TEST_ASSERT_EQUAL_UINT32(0, model.estimated_epoch(Provider::Claude, 5000));
     UsageUpdate unavailable{};
     unavailable.sent_at = 1000;
     unavailable.sampled_at = 1000;
     TEST_ASSERT_TRUE(model.apply(unavailable, 0));
+    TEST_ASSERT_EQUAL_UINT32(1005, model.estimated_epoch(Provider::Codex, 5000));
+    TEST_ASSERT_EQUAL_UINT32(0, model.estimated_epoch(Provider::Claude, 5000));
     TEST_ASSERT_EQUAL(int(DisplayState::NoData),
                       int(model.display_state(Provider::Codex, true)));
 
