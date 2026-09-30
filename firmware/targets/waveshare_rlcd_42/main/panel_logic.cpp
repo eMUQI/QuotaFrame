@@ -152,6 +152,9 @@ NavResult Navigator::input(Input in, View &v, uint64_t now_ms) {
         else if (in == Input::KeyHold) {
             v.page = return_page_;
             normalize(v);
+        } else if (v.save_error) {
+            // Retries the rejected value; the footer shows BOOT RETRY in this state.
+            r.save = true;
         } else {
             auto &s = v.settings;
             uint8_t *values[kSettingRows] = {&s.cycle, &s.alert, &s.seconds, &s.rotation};

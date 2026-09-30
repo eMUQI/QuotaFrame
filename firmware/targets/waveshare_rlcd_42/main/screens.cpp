@@ -492,7 +492,8 @@ void Screens::clock(const View &v) {
     const int lower = value + (portrait_ ? 52 : 48);
     c_.dotted(kLeft, lower, c_.width() - 2 * kLeft);
     for (int i = 0; i < 2; ++i) {
-        const int percent = compact_percent(v, i);
+        // The clock has no OFFLINE header, so retained values are cleared instead of shown.
+        const int percent = v.link.encrypted ? compact_percent(v, i) : -1;
         // Landscape places the two services side by side; portrait stacks them in 60 px rows.
         const int bx = portrait_ ? kLeft : kLeft + i * 193;
         const int by = portrait_ ? lower + 10 + i * 60 : lower + 8;
@@ -625,8 +626,9 @@ void Screens::ota(const View &v) {
 void Screens::render(const View &v) {
     const uint8_t rotation = std::min<uint8_t>(v.settings.rotation, 2);
     portrait_ = rotation == static_cast<uint8_t>(Rotation::Portrait);
+    // A retained OTA failure banner takes precedence; the usage alert returns when it expires.
     const bool show_alert = v.alert >= 0 && v.alert < 2 && v.ota.stage == OtaStage::Idle &&
-                            !v.link.has_passkey && v.page != Page::Settings;
+                            !v.ota.error && !v.link.has_passkey && v.page != Page::Settings;
     c_.begin(rotation, show_alert);
     // A 2 px frame 4 px inside the panel edge, like the printed border of a segment LCD.
     c_.frame(kBezel, kBezel, c_.width() - 2 * kBezel, c_.height() - 2 * kBezel, 2,

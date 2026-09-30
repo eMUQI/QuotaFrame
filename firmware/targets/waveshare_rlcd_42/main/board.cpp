@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <sys/stat.h>
 namespace usage_panel::rlcd {
 namespace {
 constexpr char kTag[] = "rlcd42";
@@ -243,22 +244,33 @@ void Board::sample_trend(View &v) {
         const auto &s = v.model.snapshot(p);
         return s.latest_short_present && s.short_window.present ? s.short_window.used_percent : 255;
     };
-    if (v.trend_count == kTrendPoints) {
-        std::move(v.trend.begin() + 1, v.trend.end(), v.trend.begin());
-        --v.trend_count;
+    // The sample is committed to the view only after the file is replaced, so a failed write
+    // leaves the bucket open and the next poll retries it.
+    auto trend = v.trend;
+    int count = v.trend_count;
+    if (count == kTrendPoints) {
+        std::move(trend.begin() + 1, trend.end(), trend.begin());
+        --count;
     }
-    v.trend[v.trend_count++] = {epoch, value(Provider::Codex), value(Provider::Claude), {}};
+    trend[count++] = {epoch, value(Provider::Codex), value(Provider::Claude), {}};
     FILE *f = fopen(kTrendTemp, "wb");
     if (!f)
         return;
-    bool ok = fwrite(v.trend.data(), sizeof(TrendPoint), v.trend_count, f) ==
-              static_cast<size_t>(v.trend_count);
+    bool ok = fwrite(trend.data(), sizeof(TrendPoint), count, f) == static_cast<size_t>(count);
     ok = fclose(f) == 0 && ok;
-    if (ok) {
+    if (!ok)
+        return;
+    // After a failed install only the backup remains; it is kept until a new file is installed.
+    struct stat st;
+    if (stat(kTrendFile, &st) == 0) {
         remove(kTrendBackup);
         rename(kTrendFile, kTrendBackup);
-        if (rename(kTrendTemp, kTrendFile) != 0)
-            ESP_LOGW(kTag, "Trend persistence failed; backup retained");
     }
+    if (rename(kTrendTemp, kTrendFile) != 0) {
+        ESP_LOGW(kTag, "Trend persistence failed; backup retained");
+        return;
+    }
+    v.trend = trend;
+    v.trend_count = count;
 }
 } // namespace usage_panel::rlcd

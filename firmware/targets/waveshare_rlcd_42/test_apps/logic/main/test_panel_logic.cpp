@@ -135,6 +135,18 @@ TEST_CASE("settings open on hold, cycle values and return to the previous page",
     TEST_ASSERT_EQUAL_INT(-1, v.alert);
 }
 
+TEST_CASE("settings retry a failed save without changing the value", "[nav]")
+{
+    Navigator nav;
+    View v = linked_view();
+    nav.input(Input::KeyHold, v, 0);
+    nav.input(Input::Boot, v, 0);
+    TEST_ASSERT_EQUAL_UINT8(1, v.settings.cycle);
+    v.save_error = true;
+    TEST_ASSERT_TRUE(nav.input(Input::Boot, v, 0).save);
+    TEST_ASSERT_EQUAL_UINT8(1, v.settings.cycle);
+}
+
 TEST_CASE("alert raises once, dismisses and re-arms below the threshold", "[alert]")
 {
     Navigator nav;
