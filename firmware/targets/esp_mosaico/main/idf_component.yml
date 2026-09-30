@@ -1,8 +1,8 @@
 dependencies:
-  # Display support is required by this target. Declare its dependencies here
-  # because BSP config rules cannot be evaluated before sdkconfig exists.
-  # Keeping both dependencies in the first pass preserves the locked graph.
-  espressif/esp_lvgl_adapter: "0.6.2"
+  # The BSP pulls LVGL only when its display support is enabled, and that rule
+  # cannot be evaluated on a clean tree, where no sdkconfig exists yet. Naming
+  # LVGL here resolves it in the Component Manager's first pass so components
+  # that require it by name are satisfiable from the first configure.
   lvgl/lvgl: "^9.5.0,<9.6.0"
   # The display adapter is required before BSP sdkconfig rules can be evaluated.
   espressif/esp_lvgl_adapter: "0.6.2"
