@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from quotaframe_bridge import __version__
+from scripts.target_registry import ci_plan
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -89,13 +90,12 @@ class ReleaseWorkflowInvariantTests(unittest.TestCase):
         self.assertNotIn("secrets.RELEASE_TOKEN", self.workflow)
 
     def test_ci_runs_bridge_for_files_the_bridge_suite_validates(self) -> None:
-        # The Bridge suite reads these files, so they cannot be classified as
-        # documentation and skipped.
-        self.assertIn(
-            "if grep -Eq '^(LICENSE|THIRD_PARTY_LICENSES",
-            self.ci_workflow,
-        )
-        self.assertIn("docs/release/notes/", self.ci_workflow)
+        for path in ("LICENSE", "THIRD_PARTY_LICENSES.md", "docs/release/notes/v1.0.0.md"):
+            with self.subTest(path=path):
+                self.assertTrue(ci_plan([path])["bridge"])
+        self.assertIn('ci-plan --changed-files "$changed_files" >> "$GITHUB_OUTPUT"', self.ci_workflow)
+        self.assertIn("bridge: ${{ steps.plan.outputs.bridge }}", self.ci_workflow)
+        self.assertIn("if: needs.changes.outputs.bridge == 'true'", self.ci_workflow)
 
     def test_ci_actions_are_immutable(self) -> None:
         web_job = self.ci_workflow.split("\n  web:", 1)[1].split(

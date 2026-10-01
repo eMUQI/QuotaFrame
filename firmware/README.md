@@ -172,6 +172,10 @@ eim run "idf.py -C firmware/targets/<target> -p <PORT> flash" v6.1
 
 ## 固件测试工程
 
+CI 按改动路径选择构建：目标目录中的代码或配置变更构建该目标及其板级测试工程；仅修改测试工程时只构建该测试工程。共享固件组件、协议输入、目标注册表或工作流变更会触发全量固件构建。普通 Markdown 文档不触发固件构建。
+
+未受影响的固件项目保留同名轻量检查，以满足分支保护要求，但不会启动 ESP-IDF 容器。Bridge 测试仍会验证固件目录和测试源码注册；Web 检查仅在网站或相关构建输入变化时运行。CI 只编译固件测试镜像，不执行芯片上的 Unity 用例。
+
 共享组件的测试工程在 `test_apps/` 下，每个目标自己的板级逻辑测试在`targets/<target>/test_apps/logic`。本节命令与上面的构建命令一样，在 EIM v6.1 PowerShell 中执行；若 EIM CLI 已在 PATH 中，也可写成 `eim run "<命令>" v6.1`。构建某个目标的板级 Unity 测试镜像：
 
 ```powershell
