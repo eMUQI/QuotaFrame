@@ -70,7 +70,7 @@ eim run "idf.py -C firmware/targets/<target> merge-bin -o <full-image>" v6.1
 
 M5GFX 的 SPI 兼容包装位于 `targets/m5sticks3/main/m5gfx_spi_compat.c`，将未初始化的 DMA burst 值归一化为驱动默认值；升级依赖时需复核包装与实机显示。
 
-AMOLED 2.16 使用 16 MB Flash、Octal PSRAM、4 MB App 分区和 BSP 2.0.1，利用 QMI8658、PCF85063 与 AXP2101 实现动作唤醒、时钟和电源遥测；音频与 SD 卡未纳入产品功能。
+AMOLED 2.16 使用 16 MB Flash、Octal PSRAM、4 MB App 分区和 BSP 2.0.1，利用 QMI8658、PCF85063 与 AXP2101 实现动作唤醒、时钟和电源遥测；音频与 microSD 卡未纳入产品功能。
 
 ## 分区表与 OTA 准备
 

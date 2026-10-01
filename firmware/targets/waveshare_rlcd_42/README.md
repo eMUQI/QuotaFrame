@@ -11,7 +11,7 @@ eim run "idf.py -C firmware/targets/waveshare_rlcd_42 -p <PORT> flash" v6.1
 Evidence level: **partial hardware**. The firmware and `test_apps/logic` compile with ESP-IDF
 v6.1, and the logic tests pass on a host build. On one board, the landscape Home and detail
 pages rendered live usage from a bonded Bridge, which reconnected with an encrypted link after
-flashing. Portrait and flipped layouts, button debounce, sensors, audio, TF card, first-time
+flashing. Portrait and flipped layouts, button debounce, sensors, audio, microSD card, first-time
 pairing and OTA have not been exercised on hardware.
 
 The device advertises as `QF-WS-S3-R42-` followed by the final two Bluetooth MAC bytes and
@@ -49,7 +49,7 @@ The display uses the same SHORT / WEEK labels and used-percentage meaning as the
 | --- | --- |
 | Home | Both services stacked; SHORT and WEEK usage bars with reset countdowns and elapsed-time markers |
 | Codex, Claude | One service: the SHORT window in 80 px figures with its RESET countdown, then SHORT and WEEK sections each with a usage bar, elapsed-time marker and elapsed time. OVER +N% marks usage at least 5 percentage points above the elapsed fraction of the window |
-| Trend | Last 24 hours from the TF card, 48 half-hour bars per service |
+| Trend | Last 24 hours from the microSD card, 48 half-hour bars per service |
 | Clock | Time with seconds, date, SHTC3 temperature and humidity, compact usage bars |
 | Settings | Auto cycle, alert mode, seconds, rotation |
 | Alert | Full-screen inverted page once a short window reaches 95 %; NEAR LIMIT below 100 %, EXHAUSTED at 100 % |
@@ -105,7 +105,7 @@ are recorded in [UPSTREAM.md](UPSTREAM.md).
 | I2C | SDA 13, SCL 14: PCF85063 0x51, SHTC3 0x70, ES8311 0x18 |
 | Keys | KEY 18, BOOT 0, active low |
 | Battery | GPIO4 / ADC1 channel 3 through a 1:3 divider |
-| TF card | SDMMC 1-bit: CLK 38, CMD 21, D0 39 |
+| microSD card | SDMMC 1-bit: CLK 38, CMD 21, D0 39 |
 | Speaker | I2S MCLK 16, BCLK 9, WS 45, DOUT 8; amplifier enable 46 |
 
 The ST7305 initialization sequence and pixel layout come from the Waveshare
@@ -114,7 +114,7 @@ The battery percentage is a linear voltage proxy between
 3.0 V and 4.12 V; the board has no fuel gauge or charger status, so the OTA battery gate is
 not registered (the voltage cannot distinguish battery from USB power).
 
-The trend requires a mounted FAT TF card; absence is nonfatal. Its record format matches the
+The trend requires a mounted FAT microSD card; absence is nonfatal. Its record format matches the
 ePaper 3.97 target: up to 48 timestamped records in `trend.bin`, with `trend.bak` used when the
 primary file is missing, empty, truncated, oversized, unreadable or contains an invalid record.
 Sampling starts only after a Bridge publication supplies a valid epoch. Until then, the trend
@@ -129,7 +129,7 @@ are not used as the current time.
   self-heating, which this firmware does not apply until measured.
 - Battery percentage on battery and on USB power.
 - ES8311 tone level and amplifier noise.
-- TF card mount, trend persistence and backup recovery.
+- microSD card mount, trend persistence and backup recovery.
 - Pairing, reconnect, usage rendering with a real Bridge, and OTA with physical confirmation.
 
 ## Glyphs and preview

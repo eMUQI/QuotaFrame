@@ -60,7 +60,7 @@ security prompts and physical refresh requests bypass this interval.
 A local redraw does not trigger a new provider fetch on the Bridge. The shared
 protocol currently publishes usage from the host and has no device-to-host
 fetch request. RTC time remains `--:--` until the stored calendar is valid.
-The trend requires a mounted FAT SD card; absence is nonfatal. Samples are
+The trend requires a mounted FAT microSD card; absence is nonfatal. Samples are
 stored every 30 minutes with up to 48 timestamped records and a replacement
 backup. At boot, `trend.bak` is loaded when `trend.bin` is missing or contains
 an invalid record. Missing intervals are not interpolated. An empty trend page remains
