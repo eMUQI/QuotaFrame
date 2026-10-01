@@ -316,7 +316,7 @@ nav .source-link {
 }
 .compare-table {
   width: 100%;
-  min-width: 760px;
+  min-width: 900px;
   table-layout: fixed;
   border-collapse: collapse;
   font-size: 13px;
@@ -1182,7 +1182,7 @@ progress::-webkit-progress-value {
     margin-top: 10px;
   }
   .compare-table {
-    min-width: 640px;
+    min-width: 780px;
   }
   .compare-table th,
   .compare-table td {

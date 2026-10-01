@@ -153,6 +153,14 @@ class WebFlasherAssemblerTests(unittest.TestCase):
                     "image": "espressif-esp-mosaico-full-v1.2.3.bin",
                     "manifest": "manifests/esp_mosaico.json",
                 },
+                {
+                    "id": "waveshare_rlcd_42",
+                    "name": "Waveshare RLCD 4.2",
+                    "description": "400 × 300 黑白反射式 LCD · KEY / BOOT 按键翻页",
+                    "asset": "assets/devices/waveshare_rlcd_42.jpg",
+                    "image": "waveshare-esp32-s3-rlcd-42-full-v1.2.3.bin",
+                    "manifest": "manifests/waveshare_rlcd_42.json",
+                },
             ],
         )
 

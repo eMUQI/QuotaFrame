@@ -296,7 +296,11 @@ class TargetRegistryTests(unittest.TestCase):
         )
 
     def test_new_web_targets_match_chip_families(self) -> None:
-        for target_id, chip in (("waveshare_epaper_397", "ESP32-S3"), ("esp_mosaico", "ESP32-S31")):
+        for target_id, chip in (
+            ("waveshare_epaper_397", "ESP32-S3"),
+            ("esp_mosaico", "ESP32-S31"),
+            ("waveshare_rlcd_42", "ESP32-S3"),
+        ):
             web = TARGETS_BY_ID[target_id].web_flash
             self.assertIsNotNone(web)
             self.assertEqual(web.chip_family, chip)
