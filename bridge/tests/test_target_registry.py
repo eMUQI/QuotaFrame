@@ -158,6 +158,16 @@ class TargetRegistryTests(unittest.TestCase):
             for test_app in target.test_apps:
                 self.assertIn(test_app, paths)
 
+    def test_ci_names_preserve_required_status_checks(self) -> None:
+        names = {entry["name"] for entry in target_registry.ci_matrix()["include"]}
+        self.assertTrue({
+            "ESP32-S3-Touch-AMOLED-2.16 target",
+            "ESP32-S3-Touch-AMOLED-2.16 logic tests",
+            "ESP32-S3-ePaper-3.97 target",
+            "ESP32-S3-RLCD-4.2 target",
+            "ESP32-S3-RLCD-4.2 logic tests",
+        } <= names)
+
     def test_ci_matrix_builds_shared_apps_for_every_registered_idf_version(self) -> None:
         future = replace(
             TARGETS[1],
