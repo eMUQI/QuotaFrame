@@ -145,7 +145,7 @@ class TargetRegistryTests(unittest.TestCase):
     def test_ci_matrix_includes_registered_projects_and_target_tests(self) -> None:
         matrix = self._matrix("ci-matrix")
         entries = matrix["include"]
-        paths = {path for entry in entries for path in entry["paths"].split()}
+        paths = {entry["path"] for entry in entries}
         expected_image = (
             "espressif/idf:v6.1@sha256:"
             "81893c71bb5e570088901f21def8684c25cd2a9020281bd01b843a7655edb18c"
@@ -186,17 +186,14 @@ class TargetRegistryTests(unittest.TestCase):
                 {
                     entry["idf_version"]
                     for entry in entries
-                    if path in entry["paths"].split()
+                    if path == entry["path"]
                 },
                 {"6.1", "6.2"},
             )
         future_entries = [
             entry
             for entry in entries
-            if any(
-                path.startswith("firmware/targets/future_target")
-                for path in entry["paths"].split()
-            )
+            if entry["path"].startswith("firmware/targets/future_target")
         ]
         self.assertEqual(
             {entry["idf_version"] for entry in future_entries},
@@ -207,28 +204,27 @@ class TargetRegistryTests(unittest.TestCase):
             len(entries),
         )
 
-    def test_ci_matrix_runs_one_job_per_toolchain_and_target(self) -> None:
-        # Actions bills each job's container pull and cache restore separately,
-        # so the short test-application builds share a single job.
+    def test_ci_matrix_runs_one_job_per_project(self) -> None:
         entries = self._matrix("ci-matrix")["include"]
-        self.assertEqual(len(entries), 1 + len(TARGETS))
-        shared = [entry for entry in entries if not entry["check-lockfile"]]
-        self.assertEqual(len(shared), 1)
-        self.assertEqual(
-            shared[0]["paths"].split(),
-            [
-                "firmware/test_apps/protocol",
-                "firmware/test_apps/ota",
-                "firmware/test_apps/panel_state",
-                *(app for target in TARGETS for app in target.test_apps),
-            ],
+        test_apps = [
+            "firmware/test_apps/protocol",
+            "firmware/test_apps/ota",
+            "firmware/test_apps/panel_state",
+            *(app for target in TARGETS for app in target.test_apps),
+        ]
+        self.assertEqual(len(entries), len(test_apps) + len(TARGETS))
+        self.assertCountEqual(
+            [entry["path"] for entry in entries if not entry["check-lockfile"]],
+            test_apps,
         )
+        for field in ("name", "cache-name", "path"):
+            self.assertEqual(len({entry[field] for entry in entries}), len(entries), field)
         for target in TARGETS:
             built = [
                 entry
                 for entry in entries
                 if entry["check-lockfile"]
-                and entry["paths"] == target.firmware_project
+                and entry["path"] == target.firmware_project
             ]
             self.assertEqual(len(built), 1, target.id)
 
