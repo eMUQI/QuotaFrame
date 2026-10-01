@@ -96,7 +96,7 @@ class FakeBleakClient:
                 "ack": "status", "n": 0,
                 "ok": True,
                 "data": {
-                    "name": "M5 Usage Panel",
+                    "name": "M5StickS3",
                     "sec": True,
                     "protocol": 1,
                     "page": "overview",
@@ -259,7 +259,7 @@ class BleakNusTransportTests(unittest.IsolatedAsyncioTestCase):
 
         record = "\n".join(captured.output)
         self.assertIn("BLE connected", record)
-        self.assertIn("device=M5 Usage Panel", record)
+        self.assertIn("device=M5StickS3", record)
         self.assertIn("secure=true", record)
         self.assertIn("protocol=1", record)
         self.assertIn("capabilities=usage.v1", record)
@@ -282,7 +282,7 @@ class BleakNusTransportTests(unittest.IsolatedAsyncioTestCase):
 
         await transport.send_command(payload, "usage", 42)
 
-        self.assertEqual(transport.status.name, "M5 Usage Panel")
+        self.assertEqual(transport.status.name, "M5StickS3")
         self.assertTrue(fake_client.assert_response)
         self.assertGreater(len(fake_client.writes), 2)
         await transport.close()

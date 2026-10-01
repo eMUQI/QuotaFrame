@@ -33,7 +33,7 @@ eim run "idf.py -C firmware/targets/esp_mosaico build" v6.1
 
 - 与屏幕无关的面板行为由 `usage_panel_state` 共享；`display_ui.*` 和带板级标定的 `orientation.*` 由本目标维护；
 - 显示、触控、旋转、亮度和 LVGL 锁全部交给乐鑫 BSP：`bsp_display_start_with_config()` 一次性完成 esp_lvgl_adapter 初始化、CO5300 注册、CST9217 注册与区域对齐，`bsp_display_set_rotation()` 同时旋转面板和触控；
-- `usage_core` / `usage_protocol` / `usage_ble` / `usage_ota` 与其他目标共用，BLE 广播前缀 `QF-Mosaico-`，状态身份 `ESP-Mosaico Usage Panel`，型号标识 `esp_mosaico`；
+- `usage_core` / `usage_protocol` / `usage_ble` / `usage_ota` 与其他目标共用，BLE 广播前缀 `QF-Mosaico-`，状态身份 `ESP-Mosaico`，型号标识 `esp_mosaico`；
 - 触控标签与左右滑动切页之外，板载 AI 键单击可唤醒并切换到下一页。
 
 ### 显示刷新

@@ -92,7 +92,7 @@ const char* get_ui_location(void* context)
 
 const BleServiceConfig ble_config{
     .advertising_prefix = CONFIG_MOSAICO_USAGE_PANEL_BLE_ADVERTISING_PREFIX,
-    .status_name = "ESP-Mosaico Usage Panel",
+    .status_name = "ESP-Mosaico",
     .target = "esp_mosaico",
     .enable_time_sync = true,
     .ota = &ota,

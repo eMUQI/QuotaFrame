@@ -14,6 +14,14 @@ sys.path.insert(0, str(ROOT / "bridge" / "src"))
 from quotaframe_bridge.targets import IDF_IMAGES, TARGETS  # noqa: E402
 
 
+# Branch protection requires these check names independently of display labels.
+_CI_LABELS = {
+    "waveshare_amoled_216": "ESP32-S3-Touch-AMOLED-2.16",
+    "waveshare_epaper_397": "ESP32-S3-ePaper-3.97",
+    "waveshare_rlcd_42": "ESP32-S3-RLCD-4.2",
+}
+
+
 def toolchain(version: str) -> dict[str, str]:
     return {
         "idf_version": version,
@@ -50,7 +58,7 @@ def ci_matrix() -> dict[str, list[dict[str, object]]]:
             ("panel_state tests", "firmware/test_apps/panel_state"),
         ]
         test_apps.extend(
-            (f"{target.label} {Path(app).name} tests", app)
+            (f"{_CI_LABELS.get(target.id, target.label)} {Path(app).name} tests", app)
             for target in TARGETS
             if target.idf_version == version
             for app in target.test_apps
@@ -68,7 +76,7 @@ def ci_matrix() -> dict[str, list[dict[str, object]]]:
     for target in TARGETS:
         entries.append(
             {
-                "name": f"{target.label} target",
+                "name": f"{_CI_LABELS.get(target.id, target.label)} target",
                 "path": target.firmware_project,
                 "cache-name": target.id.replace("_", "-"),
                 "check-lockfile": True,

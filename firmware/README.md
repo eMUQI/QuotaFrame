@@ -117,7 +117,7 @@ Waveshare 的烧录命令相同，只需替换工程路径和实际端口：
 idf.py -C firmware/targets/esp32_s3_touch_amoled_216 -p <PORT> flash monitor
 ```
 
-Waveshare AMOLED 固件以 `QF-WS-S3-A216-XXXX` 广播，状态身份为`Waveshare Usage Panel`；ePaper 固件以 `QF-WS-S3-E397-XXXX` 广播，状态身份为 `Waveshare ePaper 3.97`，型号标识为 `waveshare_epaper_397`；ESP-Mosaico 固件以 `QF-Mosaico-XXXX` 广播，状态身份为 `ESP-Mosaico Usage Panel`，型号标识为 `esp_mosaico`。Bridge 按用户已认领的设备地址分别建立会话，支持同型号多台设备；各设备独立配对和重连。
+Waveshare AMOLED 固件以 `QF-WS-S3-A216-XXXX` 广播，状态身份为 `Waveshare AMOLED 2.16`；ePaper 固件以 `QF-WS-S3-E397-XXXX` 广播，状态身份为 `Waveshare ePaper 3.97`，型号标识为 `waveshare_epaper_397`；ESP-Mosaico 固件以 `QF-Mosaico-XXXX` 广播，状态身份为 `ESP-Mosaico`，型号标识为 `esp_mosaico`。Bridge 按用户已认领的设备地址分别建立会话，支持同型号多台设备；各设备独立配对和重连。
 
 ## 页面和状态
 
