@@ -17,7 +17,7 @@
 | 摇动 / 翻转唤醒 | ✅ | — | — | ✅ |
 | 屏上设置页 | ✅ 亮度、自动时钟超时 | — 亮度仅 menuconfig | ✅ 刷新间隔、屏幕方向 | ✅ 亮度、自动时钟超时 |
 | 温湿度显示 | — | — | ✅ 时钟页 | — |
-| 用量趋势（48 点 / 30 分钟） | — | — | ✅ 需 FAT SD 卡 | — |
+| 用量趋势（48 点 / 30 分钟） | — | — | ✅ 需 FAT microSD 卡 | — |
 | 托盘/菜单栏左键切换时钟（`screen.toggle.v1`） | ✅ | — | ✅ | ✅ |
 | 滚轮翻页（`screen.page.v1`） | ✅ | ✅ | ✅ | ✅ |
 | BLE OTA（`ota.folder.v1`） | ✅ | ✅ | ✅ | ✅ |
@@ -27,7 +27,7 @@
 
 ePaper 3.97 与 ESP-Mosaico 的详细说明见 [ePaper 3.97 固件说明](../firmware/targets/waveshare_epaper_397/README.md) 与 [ESP-Mosaico 固件说明](../firmware/targets/esp_mosaico/README.md)。
 
-RLCD 4.2 使用 400×300 黑白反射式 LCD，提供总览、Codex / Claude 详情、趋势、时钟和设置页；竖屏仅在总览和时钟间轮换。它支持 RTC、温湿度显示、电压估算电量，以及需 FAT TF 卡的 48 点趋势。屏幕方向由设置选择，未接入 Web 烧录器。当前实机验证范围和完整操作见 [RLCD 4.2 说明](../firmware/targets/waveshare_rlcd_42/README.md)。
+RLCD 4.2 使用 400×300 黑白反射式 LCD，提供总览、Codex / Claude 详情、趋势、时钟和设置页；竖屏仅在总览和时钟间轮换。它支持 RTC、温湿度显示、电压估算电量，以及需 FAT microSD 卡的 48 点趋势。屏幕方向由设置选择，未接入 Web 烧录器。当前实机验证范围和完整操作见 [RLCD 4.2 说明](../firmware/targets/waveshare_rlcd_42/README.md)。
 
 ## 屏幕快捷操作
 
