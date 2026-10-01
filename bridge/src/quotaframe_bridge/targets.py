@@ -122,6 +122,12 @@ TARGETS: tuple[TargetDefinition, ...] = (
         image_chip_id=9,
         ota_partition_bytes=4 * 1024 * 1024,
         test_apps=("firmware/targets/waveshare_rlcd_42/test_apps/logic",),
+        web_flash=WebFlashDefinition(
+            name="Waveshare RLCD 4.2",
+            description="400 × 300 黑白反射式 LCD · KEY / BOOT 按键翻页",
+            chip_family="ESP32-S3",
+            asset="assets/devices/waveshare_rlcd_42.jpg",
+        ),
     ),
 )
 

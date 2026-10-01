@@ -27,7 +27,7 @@
 
 ePaper 3.97 与 ESP-Mosaico 的详细说明见 [ePaper 3.97 固件说明](../firmware/targets/waveshare_epaper_397/README.md) 与 [ESP-Mosaico 固件说明](../firmware/targets/esp_mosaico/README.md)。
 
-RLCD 4.2 使用 400×300 黑白反射式 LCD，提供总览、Codex / Claude 详情、趋势、时钟和设置页；竖屏仅在总览和时钟间轮换。它支持 RTC、温湿度显示、电压估算电量，以及需 FAT microSD 卡的 48 点趋势。屏幕方向由设置选择，未接入 Web 烧录器。当前实机验证范围和完整操作见 [RLCD 4.2 说明](../firmware/targets/waveshare_rlcd_42/README.md)。
+RLCD 4.2 使用 400×300 黑白反射式 LCD，提供总览、Codex / Claude 详情、趋势、时钟和设置页；竖屏仅在总览和时钟间轮换。它支持 RTC、温湿度显示、电压估算电量，以及需 FAT microSD 卡的 48 点趋势。屏幕方向由设置选择，可通过 Web 烧录器安装。当前实机验证范围和完整操作见 [RLCD 4.2 说明](../firmware/targets/waveshare_rlcd_42/README.md)。
 
 ## 屏幕快捷操作
 
