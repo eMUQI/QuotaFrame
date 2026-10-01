@@ -18,9 +18,12 @@ jobs:
     name: Detect changes
     runs-on: ubuntu-latest
     outputs:
-      code: ${{ steps.filter.outputs.code }}
-      firmware: ${{ steps.filter.outputs.firmware }}
-      matrix: ${{ steps.matrix.outputs.matrix }}
+      bridge: ${{ steps.plan.outputs.bridge }}
+      web: ${{ steps.plan.outputs.web }}
+      firmware: ${{ steps.plan.outputs.firmware }}
+      skipped: ${{ steps.plan.outputs.skipped }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+      skipped_matrix: ${{ steps.plan.outputs.skipped_matrix }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -49,41 +52,23 @@ jobs:
         shell: bash
         run: git diff --check "${{ steps.base.outputs.sha }}" HEAD
 
-      - name: Detect firmware-related and code changes
-        id: filter
+      - name: Select checks for changed files
+        id: plan
+        env:
+          BASE_SHA: ${{ steps.base.outputs.sha }}
         shell: bash
         run: |
           set -euo pipefail
-
           changed_files=$(mktemp)
           trap 'rm -f "$changed_files"' EXIT
-          git diff --name-only "${{ steps.base.outputs.sha }}" HEAD > "$changed_files"
-
-          if grep -Eq '^(firmware/|protocol/examples/|bridge/src/quotaframe_bridge/targets\.py$|scripts/target_registry\.py$|\.github/workflows/ci\.yml$)' "$changed_files"; then
-            echo "firmware=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "firmware=false" >> "$GITHUB_OUTPUT"
-          fi
-
-          # Anything outside prose and repository metadata counts as code.
-          # The Bridge suite reads the licence notices and the release notes
-          # for the current version, so those are not prose for this purpose.
-          if grep -Eq '^(LICENSE|THIRD_PARTY_LICENSES\.md|docs/release/notes/.*\.md)$' "$changed_files" \
-            || grep -Evq '^(docs/|\.gitignore$|\.gitattributes$)|\.md$' "$changed_files"; then
-            echo "code=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "code=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Generate firmware build matrix
-        id: matrix
-        shell: bash
-        run: echo "matrix=$(python scripts/target_registry.py ci-matrix)" >> "$GITHUB_OUTPUT"
+          # Include both paths of a rename when selecting affected projects.
+          git diff --name-only --no-renames -z "$BASE_SHA" HEAD > "$changed_files"
+          python scripts/target_registry.py ci-plan --changed-files "$changed_files" >> "$GITHUB_OUTPUT"
 
   bridge:
     name: Bridge tests
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.bridge == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -105,7 +90,7 @@ jobs:
   web:
     name: Web flasher tests
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     steps:
       # actions/checkout v5
@@ -189,3 +174,15 @@ jobs:
               exit 1
             fi
           fi
+
+  firmware_skipped:
+    # Required checks keep their names without starting an ESP-IDF container.
+    name: Firmware - ${{ matrix.name }}
+    needs: changes
+    if: needs.changes.outputs.skipped == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJSON(needs.changes.outputs.skipped_matrix) }}
+    steps:
+      - name: Report unaffected project
+        run: echo "No relevant changes; firmware build skipped."

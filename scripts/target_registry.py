@@ -86,10 +86,80 @@ def ci_matrix() -> dict[str, list[dict[str, object]]]:
     return {"include": entries}
 
 
+def ci_plan(changed_files: list[str]) -> dict[str, object]:
+    """Select builds conservatively and retain unselected required check names."""
+    entries = ci_matrix()["include"]
+    all_paths = {entry["path"] for entry in entries}
+    test_paths = {entry["path"] for entry in entries if not entry["check-lockfile"]}
+    selected: set[str] = set()
+    bridge = web = False
+    for path in changed_files:
+        if path.startswith("web/"):
+            web = True
+            continue
+        # Release notes and licence notices are inputs to the Bridge tests.
+        if path in {"LICENSE", "THIRD_PARTY_LICENSES.md"} or path.startswith("docs/release/notes/"):
+            bridge = True
+            continue
+        if path.endswith(".md") or path.startswith("docs/") or path in {".gitignore", ".gitattributes"}:
+            continue
+        if path in {
+            "scripts/target_registry.py",
+            "bridge/src/quotaframe_bridge/targets.py",
+        } or path.startswith(".github/workflows/"):
+            bridge = web = True
+            selected.update(all_paths)
+        elif path.startswith("firmware/"):
+            # The Bridge suite also checks firmware layout and test registration.
+            bridge = True
+            app = next((app for app in test_paths if path.startswith(app + "/")), None)
+            target = next(
+                (target for target in TARGETS if path.startswith(target.firmware_project + "/")),
+                None,
+            )
+            if app is not None:
+                selected.add(app)
+            elif target is not None:
+                selected.update((target.firmware_project, *target.test_apps))
+            else:
+                # Shared components and unregistered firmware paths require full coverage.
+                selected.update(all_paths)
+        elif path.startswith("protocol/"):
+            bridge = True
+            selected.update(all_paths)
+        elif path.startswith("bridge/"):
+            bridge = True
+            web = web or path == "bridge/src/quotaframe_bridge/__init__.py"
+        elif path.startswith("scripts/"):
+            bridge = web = True
+        else:
+            # Unknown build inputs must not silently bypass validation.
+            bridge = web = True
+            selected.update(all_paths)
+    builds = [entry for entry in entries if entry["path"] in selected]
+    skipped = [{"name": entry["name"]} for entry in entries if entry["path"] not in selected]
+    return {
+        "bridge": bridge,
+        "web": web,
+        "firmware": bool(builds),
+        "skipped": bool(skipped),
+        "matrix": {"include": builds},
+        "skipped_matrix": {"include": skipped},
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("ci-matrix", "release-matrix"))
+    parser.add_argument("command", choices=("ci-matrix", "release-matrix", "ci-plan"))
+    parser.add_argument("--changed-files", type=Path, help="NUL-delimited changed paths from git diff")
     args = parser.parse_args()
+    if args.command == "ci-plan":
+        if args.changed_files is None:
+            parser.error("ci-plan requires --changed-files")
+        paths = args.changed_files.read_bytes().decode("utf-8", errors="surrogateescape").split("\0")
+        for key, value in ci_plan([path for path in paths if path]).items():
+            print(f"{key}={json.dumps(value, separators=(',', ':'))}")
+        return 0
     matrix = ci_matrix() if args.command == "ci-matrix" else release_matrix()
     print(json.dumps(matrix, separators=(",", ":")))
     return 0

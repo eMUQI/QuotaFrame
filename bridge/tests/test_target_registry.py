@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import tempfile
 import unittest
 from dataclasses import replace
 from pathlib import Path
@@ -237,6 +238,62 @@ class TargetRegistryTests(unittest.TestCase):
                 and entry["path"] == target.firmware_project
             ]
             self.assertEqual(len(built), 1, target.id)
+
+    def test_ci_plan_selects_affected_checks_without_losing_required_names(self) -> None:
+        entries = target_registry.ci_matrix()["include"]
+        all_paths = {entry["path"] for entry in entries}
+        all_names = {entry["name"] for entry in entries}
+        rlcd = "firmware/targets/waveshare_rlcd_42"
+        cases = [
+            ([], False, False, set()),
+            (["README.md", "docs/PORTING.md", ".gitignore"], False, False, set()),
+            ([f"{rlcd}/README.md"], False, False, set()),
+            (["bridge/src/quotaframe_bridge/device_manager.py"], True, False, set()),
+            (["bridge/src/quotaframe_bridge/__init__.py"], True, True, set()),
+            (["web/src/app.js"], False, True, set()),
+            (["web/src/content/guide.md"], False, True, set()),
+            (["scripts/export_web_devices.py"], True, True, set()),
+            ([f"{rlcd}/main/screens.cpp"], True, False, {rlcd, f"{rlcd}/test_apps/logic"}),
+            ([f"{rlcd}/test_apps/logic/main/test_screens.cpp"], True, False, {f"{rlcd}/test_apps/logic"}),
+            (["firmware/test_apps/ota/main/test_ota_session.cpp"], True, False, {"firmware/test_apps/ota"}),
+            (["firmware/components/usage_core/CMakeLists.txt"], True, False, all_paths),
+            (["firmware/targets/unknown/main.cpp"], True, False, all_paths),
+            (["protocol/examples/usage-ok.jsonl"], True, False, all_paths),
+            (["scripts/target_registry.py"], True, True, all_paths),
+            (["bridge/src/quotaframe_bridge/targets.py"], True, True, all_paths),
+            ([".github/workflows/ci.yml"], True, True, all_paths),
+            (["new-build-config.toml"], True, True, all_paths),
+        ]
+        for paths, bridge, web, expected in cases:
+            with self.subTest(paths=paths):
+                plan = target_registry.ci_plan(paths)
+                built = plan["matrix"]["include"]
+                skipped = plan["skipped_matrix"]["include"]
+                self.assertEqual((plan["bridge"], plan["web"]), (bridge, web))
+                self.assertEqual({entry["path"] for entry in built}, expected)
+                names = [entry["name"] for entry in built + skipped]
+                self.assertCountEqual(names, all_names)
+                self.assertEqual((plan["firmware"], plan["skipped"]), (bool(built), bool(skipped)))
+
+    def test_ci_plan_cli_accepts_deleted_and_renamed_paths(self) -> None:
+        old = "firmware/targets/m5sticks3/main/old name.cpp"
+        new = "firmware/targets/waveshare_rlcd_42/main/new name.cpp"
+        with tempfile.TemporaryDirectory() as directory:
+            paths = Path(directory) / "changed-files"
+            # Git --no-renames reports both sides even when the old file is absent.
+            paths.write_bytes(f"{old}\0{new}\0".encode())
+            completed = subprocess.run(
+                [sys.executable, str(REPOSITORY_ROOT / "scripts/target_registry.py"),
+                 "ci-plan", "--changed-files", str(paths)],
+                check=True, capture_output=True, text=True,
+            )
+        plan = {key: json.loads(value) for key, value in
+                (line.split("=", 1) for line in completed.stdout.splitlines())}
+        self.assertEqual(
+            {entry["path"] for entry in plan["matrix"]["include"]},
+            {"firmware/targets/m5sticks3", "firmware/targets/m5sticks3/test_apps/logic",
+             "firmware/targets/waveshare_rlcd_42", "firmware/targets/waveshare_rlcd_42/test_apps/logic"},
+        )
 
     def test_new_web_targets_match_chip_families(self) -> None:
         for target_id, chip in (("waveshare_epaper_397", "ESP32-S3"), ("esp_mosaico", "ESP32-S31")):
