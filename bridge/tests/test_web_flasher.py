@@ -131,7 +131,7 @@ class WebFlasherAssemblerTests(unittest.TestCase):
                 },
                 {
                     "id": "waveshare_amoled_216",
-                    "name": "ESP32-S3-Touch-AMOLED-2.16",
+                    "name": "Waveshare AMOLED 2.16",
                     "description": "480 × 480 圆角方形 AMOLED · 触控与滑动操作",
                     "asset": "assets/devices/waveshare_amoled_216.jpg",
                     "image": "waveshare-esp32-s3-touch-amoled-216-full-v1.2.3.bin",
@@ -139,7 +139,7 @@ class WebFlasherAssemblerTests(unittest.TestCase):
                 },
                 {
                     "id": "waveshare_epaper_397",
-                    "name": "ESP32-S3-ePaper-3.97",
+                    "name": "Waveshare ePaper 3.97",
                     "description": "800 × 480 四灰阶墨水屏 · 三向拨轮操作",
                     "asset": "assets/devices/waveshare_epaper_397.jpg",
                     "image": "waveshare-esp32-s3-epaper-397-full-v1.2.3.bin",

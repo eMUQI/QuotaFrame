@@ -168,7 +168,7 @@ class ResponseValidationTests(unittest.TestCase):
                 "ack": "status", "n": 0,
                 "ok": True,
                 "data": {
-                    "name": "M5 Usage Panel",
+                    "name": "M5StickS3",
                     "sec": True,
                     "protocol": 1,
                     "page": "overview",
@@ -177,7 +177,7 @@ class ResponseValidationTests(unittest.TestCase):
             }
         )
 
-        self.assertEqual(status.name, "M5 Usage Panel")
+        self.assertEqual(status.name, "M5StickS3")
         self.assertEqual(status.page, "overview")
         self.assertEqual(status.capabilities, frozenset({"usage.v1"}))
 
@@ -186,7 +186,7 @@ class ResponseValidationTests(unittest.TestCase):
             "ack": "status", "n": 0,
             "ok": True,
             "data": {
-                "name": "M5 Usage Panel",
+                "name": "M5StickS3",
                 "sec": True,
                 "protocol": 1,
                 "page": "overview",

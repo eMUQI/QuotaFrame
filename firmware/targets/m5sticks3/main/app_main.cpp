@@ -43,7 +43,7 @@ static_assert(sizeof(CONFIG_M5_USAGE_PANEL_BLE_ADVERTISING_PREFIX) >= 2 &&
 
 const BleServiceConfig ble_config{
     .advertising_prefix = CONFIG_M5_USAGE_PANEL_BLE_ADVERTISING_PREFIX,
-    .status_name = "M5 Usage Panel",
+    .status_name = "M5StickS3",
     .target = "m5sticks3",
     .enable_time_sync = false,
     .ota = &ota,

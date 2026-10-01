@@ -99,7 +99,7 @@ const char* get_ui_location(void* context)
 
 const BleServiceConfig ble_config{
     .advertising_prefix = CONFIG_WS_USAGE_PANEL_BLE_ADVERTISING_PREFIX,
-    .status_name = "Waveshare Usage Panel",
+    .status_name = "Waveshare AMOLED 2.16",
     .target = "waveshare_amoled_216",
     .enable_time_sync = true,
     .ota = &ota,

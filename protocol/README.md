@@ -44,6 +44,18 @@ Bridge 取数失败时继续发布该服务最后有效数据，保留原始状�
 
 Bridge 必须确认 `sec=true`、`protocol=1` 和 `caps` 包含 `usage.v1`。
 
+`status.name` 用于 Bridge 的设备显示名称。仓库维护的型号使用易于识别的硬件名称：独立产品使用产品名，开发板系列使用“品牌 + 屏幕类型 + 尺寸”。
+
+| Target ID | 显示名称 |
+| --- | --- |
+| `m5sticks3` | `M5StickS3` |
+| `esp_mosaico` | `ESP-Mosaico` |
+| `waveshare_amoled_216` | `Waveshare AMOLED 2.16` |
+| `waveshare_epaper_397` | `Waveshare ePaper 3.97` |
+| `waveshare_rlcd_42` | `Waveshare RLCD 4.2` |
+
+同名设备由 Bridge 添加地址后缀区分。BLE 广播名称继续使用 `QF-` 前缀、型号缩写和设备后缀；显示名称不参与 target 匹配或固件文件命名。
+
 ### 协议与能力校验
 
 `protocol` 必须为整数 `1`，设备必须声明 `usage.v1`。能力 token 描述可选功能：OTA、时钟切换和屏保分别按设备声明启用；未知合法能力可被忽略。
@@ -53,7 +65,7 @@ Bridge 必须确认 `sec=true`、`protocol=1` 和 `caps` 包含 `usage.v1`。
 支持 OTA 的固件还返回精确 target、固件版本和 OTA 状态：
 
 ```json
-{"ack":"status","data":{"caps":["usage.v1","ota.folder.v1"],"firmware_project":"quotaframe","fw":"0.9.0","boot_valid":true,"name":"M5 Usage Panel","ota":{"err":"","off":"0","phase":"idle","size":"0"},"page":"overview","protocol":1,"sec":true,"target":"m5sticks3"},"ok":true,"n":0}
+{"ack":"status","data":{"caps":["usage.v1","ota.folder.v1"],"firmware_project":"quotaframe","fw":"0.9.0","boot_valid":true,"name":"M5StickS3","ota":{"err":"","off":"0","phase":"idle","size":"0"},"page":"overview","protocol":1,"sec":true,"target":"m5sticks3"},"ok":true,"n":0}
 ```
 
 可选身份字段、OTA 阶段和错误码见[接入契约](open-device-access.md#3-status数据)。

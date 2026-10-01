@@ -52,7 +52,7 @@ class RecordingTransport:
 
 def status(*capabilities: str) -> DeviceStatus:
     return DeviceStatus(
-        name="Waveshare Usage Panel",
+        name="Waveshare AMOLED 2.16",
         secure=True,
         protocol=1,
         page="overview",

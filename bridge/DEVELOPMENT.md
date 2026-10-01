@@ -99,7 +99,7 @@ quotaframe-bridge --name-prefix QF-WS-S3-A216-
 完成加密连接并通过协议状态校验后，Bridge 会输出：
 
 ```text
-BLE connected: device=Waveshare Usage Panel secure=true protocol=1 capabilities=usage.v1
+BLE connected: device=Waveshare AMOLED 2.16 secure=true protocol=1 capabilities=usage.v1
 ```
 
 自动重连通过相同校验后也会再次输出；未完成或校验失败的连接不会输出成功记录。

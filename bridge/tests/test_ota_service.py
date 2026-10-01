@@ -37,7 +37,7 @@ def status(
     size: int = 0,
 ) -> DeviceStatus:
     return DeviceStatus(
-        name="M5 Usage Panel",
+        name="M5StickS3",
         boot_valid=True,
         secure=True,
         protocol=1,

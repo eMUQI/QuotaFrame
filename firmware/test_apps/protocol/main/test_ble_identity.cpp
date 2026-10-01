@@ -35,10 +35,10 @@ TEST_CASE("M5 BLE identity advertises exact OTA status fields", "[ble_identity]"
     char status[1024]{};
     OtaSnapshot ota{};
     TEST_ASSERT_TRUE(make_status_json(
-        "M5 Usage Panel", true, "codex", "0.5.0", "m5sticks3",
+        "M5StickS3", true, "codex", "0.5.0", "m5sticks3",
         ota, false, status, sizeof(status)));
     TEST_ASSERT_EQUAL_STRING(
-        "{\"name\":\"M5 Usage Panel\",\"sec\":true,\"protocol\":1,"
+        "{\"name\":\"M5StickS3\",\"sec\":true,\"protocol\":1,"
         "\"page\":\"codex\",\"caps\":[\"usage.v1\",\"ota.folder.v1\"],\"firmware_project\":\"quotaframe\","
         "\"fw\":\"0.5.0\",\"target\":\"m5sticks3\",\"boot_valid\":false,"
         "\"ota\":{\"phase\":\"idle\",\"off\":\"0\","
@@ -49,7 +49,7 @@ TEST_CASE("M5 BLE identity advertises exact OTA status fields", "[ble_identity]"
     TEST_ASSERT_FALSE(make_advertising_name(
         "QF-M5-", 0xA1B2, short_output, sizeof(short_output)));
     TEST_ASSERT_FALSE(make_status_json(
-        "M5 Usage Panel", true, "codex", "0.5.0", "m5sticks3",
+        "M5StickS3", true, "codex", "0.5.0", "m5sticks3",
         ota, false, short_output, sizeof(short_output)));
 }
 
@@ -63,7 +63,7 @@ TEST_CASE("Waveshare BLE identity uses the exact OTA target", "[ble_identity]")
     char status[1024]{};
     OtaSnapshot ota{};
     TEST_ASSERT_TRUE(make_status_json(
-        "Waveshare Usage Panel", true, "claude", "0.5.0",
+        "Waveshare AMOLED 2.16", true, "claude", "0.5.0",
         "waveshare_amoled_216", ota, true, status, sizeof(status), true));
     TEST_ASSERT_NOT_NULL(strstr(
         status, "\"target\":\"waveshare_amoled_216\""));
@@ -81,7 +81,7 @@ TEST_CASE("BLE status reports active OTA progress and error", "[ble_identity]")
     ota.size = 777216;
 
     TEST_ASSERT_TRUE(make_status_json(
-        "M5 Usage Panel", true, "overview", "0.5.0", "m5sticks3",
+        "M5StickS3", true, "overview", "0.5.0", "m5sticks3",
         ota, false, status, sizeof(status)));
 
     TEST_ASSERT_NOT_NULL(strstr(status, "\"phase\":\"receiving\""));
@@ -97,7 +97,7 @@ TEST_CASE("BLE status exposes low_power as the OTA error word", "[ble_identity]"
     ota.error = OtaError::LowPower;
 
     TEST_ASSERT_TRUE(make_status_json(
-        "M5 Usage Panel", true, "codex", "0.5.0", "m5sticks3",
+        "M5StickS3", true, "codex", "0.5.0", "m5sticks3",
         ota, false, status, sizeof(status)));
     TEST_ASSERT_NOT_NULL(strstr(status, "\"err\":\"low_power\""));
 }
@@ -107,7 +107,7 @@ TEST_CASE("BLE status omits page when UI location is absent", "[ble_identity]")
     char status[1024]{};
     OtaSnapshot ota{};
     TEST_ASSERT_TRUE(make_status_json(
-        "M5 Usage Panel", false, nullptr, "0.5.0", "m5sticks3",
+        "M5StickS3", false, nullptr, "0.5.0", "m5sticks3",
         ota, false, status, sizeof(status)));
     TEST_ASSERT_NULL(strstr(status, "\"page\""));
     TEST_ASSERT_NOT_NULL(strstr(status, "\"sec\":false"));
@@ -121,10 +121,10 @@ TEST_CASE("BLE status rejects unsafe public JSON strings", "[ble_identity]")
         "M5 \"Usage\" Panel", true, "codex", "0.5.0", "m5sticks3",
         ota, false, status, sizeof(status)));
     TEST_ASSERT_FALSE(make_status_json(
-        "M5 Usage Panel", true, "co\\dex", "0.5.0", "m5sticks3",
+        "M5StickS3", true, "co\\dex", "0.5.0", "m5sticks3",
         ota, false, status, sizeof(status)));
     TEST_ASSERT_FALSE(make_status_json(
-        "M5 Usage Panel", true, "codex", "0.5.0", "bad\"target",
+        "M5StickS3", true, "codex", "0.5.0", "bad\"target",
         ota, false, status, sizeof(status)));
 
     const char control_name[] = {'M', '5', '\n', '\0'};
@@ -141,7 +141,7 @@ TEST_CASE("BLE service rejects overlong configured identity", "[ble_identity]")
     BleService service;
     BleServiceConfig config{
         .advertising_prefix = "12345678901234567890",
-        .status_name = "M5 Usage Panel",
+        .status_name = "M5StickS3",
         .target = "m5sticks3",
         .enable_time_sync = false,
         .ota = &ota,

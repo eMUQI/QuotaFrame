@@ -27,7 +27,7 @@ class TargetRegistryTests(unittest.TestCase):
                 "m5sticks3",
             ),
             "waveshare_amoled_216": (
-                "ESP32-S3-Touch-AMOLED-2.16",
+                "Waveshare AMOLED 2.16",
                 "firmware/targets/esp32_s3_touch_amoled_216",
                 "6.1",
                 "ws_usage_panel.bin",
@@ -35,7 +35,7 @@ class TargetRegistryTests(unittest.TestCase):
                 "waveshare-esp32-s3-touch-amoled-216",
             ),
             "waveshare_epaper_397": (
-                "ESP32-S3-ePaper-3.97",
+                "Waveshare ePaper 3.97",
                 "firmware/targets/waveshare_epaper_397",
                 "6.1",
                 "ws_epaper_397.bin",
@@ -51,7 +51,7 @@ class TargetRegistryTests(unittest.TestCase):
                 "espressif-esp-mosaico",
             ),
             "waveshare_rlcd_42": (
-                "ESP32-S3-RLCD-4.2",
+                "Waveshare RLCD 4.2",
                 "firmware/targets/waveshare_rlcd_42",
                 "6.1",
                 "ws_rlcd_42.bin",
@@ -243,7 +243,7 @@ class TargetRegistryTests(unittest.TestCase):
                 "assets/devices/m5sticks3.jpg",
             ),
             "waveshare_amoled_216": (
-                "ESP32-S3-Touch-AMOLED-2.16",
+                "Waveshare AMOLED 2.16",
                 "480 × 480 圆角方形 AMOLED · 触控与滑动操作",
                 "ESP32-S3",
                 "assets/devices/waveshare_amoled_216.jpg",

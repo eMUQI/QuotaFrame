@@ -60,7 +60,7 @@ TARGETS: tuple[TargetDefinition, ...] = (
     ),
     TargetDefinition(
         id="waveshare_amoled_216",
-        label="ESP32-S3-Touch-AMOLED-2.16",
+        label="Waveshare AMOLED 2.16",
         firmware_project="firmware/targets/esp32_s3_touch_amoled_216",
         idf_version="6.1",
         ota_image="ws_usage_panel.bin",
@@ -70,7 +70,7 @@ TARGETS: tuple[TargetDefinition, ...] = (
         ota_partition_bytes=4 * 1024 * 1024,
         test_apps=("firmware/targets/esp32_s3_touch_amoled_216/test_apps/logic",),
         web_flash=WebFlashDefinition(
-            name="ESP32-S3-Touch-AMOLED-2.16",
+            name="Waveshare AMOLED 2.16",
             description="480 × 480 圆角方形 AMOLED · 触控与滑动操作",
             chip_family="ESP32-S3",
             asset="assets/devices/waveshare_amoled_216.jpg",
@@ -78,7 +78,7 @@ TARGETS: tuple[TargetDefinition, ...] = (
     ),
     TargetDefinition(
         id="waveshare_epaper_397",
-        label="ESP32-S3-ePaper-3.97",
+        label="Waveshare ePaper 3.97",
         firmware_project="firmware/targets/waveshare_epaper_397",
         idf_version="6.1",
         ota_image="ws_epaper_397.bin",
@@ -87,7 +87,7 @@ TARGETS: tuple[TargetDefinition, ...] = (
         image_chip_id=9,
         ota_partition_bytes=4 * 1024 * 1024,
         web_flash=WebFlashDefinition(
-            name="ESP32-S3-ePaper-3.97",
+            name="Waveshare ePaper 3.97",
             description="800 × 480 四灰阶墨水屏 · 三向拨轮操作",
             chip_family="ESP32-S3",
             asset="assets/devices/waveshare_epaper_397.jpg",
@@ -113,7 +113,7 @@ TARGETS: tuple[TargetDefinition, ...] = (
     ),
     TargetDefinition(
         id="waveshare_rlcd_42",
-        label="ESP32-S3-RLCD-4.2",
+        label="Waveshare RLCD 4.2",
         firmware_project="firmware/targets/waveshare_rlcd_42",
         idf_version="6.1",
         ota_image="ws_rlcd_42.bin",
