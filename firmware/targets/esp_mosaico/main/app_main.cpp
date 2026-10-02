@@ -86,6 +86,20 @@ GestureInput gestures;
 LinkUpdate ble_link{};
 std::atomic<Page> status_page{Page::Overview};
 std::atomic<bool> ai_button_pressed{false};
+PowerMonitor power_monitor;
+std::atomic<bool> power_monitor_ready{false};
+
+// The gauge driver waits out fixed settle times of several seconds while sealing, so the
+// gauge attaches on its own task. The battery stays hidden until it is ready.
+void power_monitor_task(void* /*context*/)
+{
+    if (power_monitor.begin()) {
+        power_monitor_ready.store(true, std::memory_order_release);
+    } else {
+        ESP_LOGW(TAG, "BQ27220 telemetry unavailable; battery will be hidden");
+    }
+    vTaskDelete(nullptr);
+}
 
 const char* get_ui_location(void* context)
 {
@@ -163,6 +177,19 @@ extern "C" void app_main(void)
     // together with the VCC_3V3 rail, so the panel has to come first.
     ESP_ERROR_CHECK(ui.begin(initial_rotation) ? ESP_OK : ESP_FAIL);
 
+    // Started first so the gauge has attached before BMI270 initialization uses the bus.
+    if (xTaskCreate(power_monitor_task, "power_init", 4096, nullptr, 1, nullptr) != pdPASS) {
+        ESP_LOGW(TAG, "BQ27220 start task unavailable; battery will be hidden");
+    }
+
+    // Advertising starts before the remaining peripherals so the bridge can reconnect
+    // while they initialize; link events wait in the queue for the main loop.
+    ESP_ERROR_CHECK(events.begin() ? ESP_OK : ESP_ERR_NO_MEM);
+    // Wired before BLE so no peer can reach the manifest path ungated; the
+    // verdict itself is published by the main-loop power poll below.
+    ota.set_power_source(&ota_power_source);
+    ESP_ERROR_CHECK(ble.start(events, ble_config));
+
     const bool orientation_sensor_ready =
         (kAutoRotationEnabled || kWakeDetectionEnabled) &&
         init_orientation_sensor();
@@ -187,11 +214,6 @@ extern "C" void app_main(void)
         }
     }
 
-    PowerMonitor power_monitor;
-    const bool power_monitor_ready = power_monitor.begin();
-    if (!power_monitor_ready) {
-        ESP_LOGW(TAG, "BQ27220 telemetry unavailable; battery will be hidden");
-    }
     const bool ai_button_ready = init_ai_button();
 
     const PanelSettings persisted_settings = load_panel_settings({
@@ -220,12 +242,6 @@ extern "C" void app_main(void)
     // it succeeds rather than committing a rotation the panel never took.
     ScreenRotation applied_rotation = kFixedRotation;
     uint64_t next_orientation_poll_ms = 0;
-
-    ESP_ERROR_CHECK(events.begin() ? ESP_OK : ESP_ERR_NO_MEM);
-    // Wired before BLE so no peer can reach the manifest path ungated; the
-    // verdict itself is published by the main-loop power poll below.
-    ota.set_power_source(&ota_power_source);
-    ESP_ERROR_CHECK(ble.start(events, ble_config));
 
     ESP_LOGI(TAG, "ESP-Mosaico usage panel started");
 
@@ -421,7 +437,7 @@ extern "C" void app_main(void)
         if (now_ms >= next_power_poll_ms) {
             next_power_poll_ms = now_ms + POWER_POLL_PERIOD_MS;
             raw_sample = {};
-            if (power_monitor_ready) power_monitor.read(raw_sample);
+            if (power_monitor_ready.load(std::memory_order_acquire)) power_monitor.read(raw_sample);
             battery_view = power_filter.update(raw_sample, now_ms);
             const OtaPowerReading reading =
                 derive_power_reading(battery_view, raw_sample);

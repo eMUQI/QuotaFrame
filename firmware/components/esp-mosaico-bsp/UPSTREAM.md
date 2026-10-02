@@ -28,5 +28,11 @@ and two-pixel vertical boundaries, clipped to the display dimensions. The CO5300
 RASET command requires an even start row and an even row count (datasheet page
 161); LVGL renders the expanded rows so the pixel buffer matches the transfer window.
 
+The CO5300 initialization sequence sets brightness register 0x51 to zero instead of
+0xFF and omits the Display On command with its 600 ms delay. `bsp_display_new()`
+issues Display On after the orientation is set. The panel therefore stays dark until
+the application raises the brightness, which it must do after the first frame has been
+written; upstream shows undefined frame memory at full brightness during that delay.
+
 When re-syncing, preserve these integration changes as well as the manifest
 constraint and review the repository diff for other board-specific changes.

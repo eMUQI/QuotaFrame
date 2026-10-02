@@ -152,13 +152,7 @@ lv_display_t* start_display(
         ESP_LOGE(TAG, "touch initialization failed");
         return nullptr;
     }
-    const esp_err_t error = bsp_display_brightness_set(
-        CONFIG_MOSAICO_USAGE_PANEL_DISPLAY_BRIGHTNESS_PERCENT);
-    if (error != ESP_OK) {
-        ESP_LOGE(TAG, "display brightness setting failed: %s",
-                 esp_err_to_name(error));
-        return nullptr;
-    }
+    // The panel comes up at zero brightness; begin() raises it after the first frame.
     return display;
 }
 
@@ -380,6 +374,8 @@ bool DisplayUi::begin(ScreenRotation initial_rotation)
     show_page(Page::Overview, /*animate=*/false);
     lv_display_add_event_cb(
         display_, transition_refresh_ready, LV_EVENT_REFR_READY, this);
+    // Frame memory is undefined until the first refresh, which then fades the panel in.
+    transition_refresh_pending_ = true;
 
     return true;
 }

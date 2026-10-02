@@ -130,11 +130,13 @@ static const co5300_lcd_init_cmd_t s_vendor_init[] = {
     {0x35, (uint8_t[]){0x00}, 1, 0},
 #endif
     {0x53, (uint8_t[]){0x20}, 1, 0},
-    {0x51, (uint8_t[]){0xFF}, 1, 0},
+    /* Frame memory is undefined until the first flush, so the panel starts at zero
+     * brightness; the application raises it once a frame has been written. Display On
+     * is issued by bsp_display_new() after the orientation is set. */
+    {0x51, (uint8_t[]){0x00}, 1, 0},
     {0x63, (uint8_t[]){0xFF}, 1, 0},
     {0x2A, (uint8_t[]){0x00, 0x00, 0x01, 0xDF}, 4, 0},
     {0x2B, (uint8_t[]){0x00, 0x00, 0x01, 0xDF}, 4, 0},
-    {0x29, NULL, 0, 600},
 };
 
 /*
