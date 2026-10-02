@@ -21,12 +21,19 @@ struct HandObservation {
     float ok_score = 0;
 };
 
-/** Time-based single-hand recognition. A completed action requires release before reuse. */
+/**
+ * Time-based single-hand recognition. A swipe may be followed by another without
+ * the hand leaving; the opposite direction is ignored briefly as the hand returning.
+ * EnterClock and several visible hands require sustained absence of hands before reuse.
+ */
 class GestureTracker {
 public:
     GestureAction update(const HandObservation& hand, uint64_t now_ms);
-    /** Invalidates prior observations and requires fresh, sustained absence of hands. */
-    void reset();
+    /**
+     * Invalidates prior observations and requires fresh, sustained absence of hands,
+     * unless a swipe was just issued: the context change it causes keeps swipes armed.
+     */
+    void reset(uint64_t now_ms);
     uint8_t hold_progress() const { return progress_; }
 
 private:
@@ -36,6 +43,7 @@ private:
     bool holding_ok_ = false;
     uint64_t absent_since_ = 0;
     uint64_t last_action_ = 0;
+    GestureAction last_swipe_ = GestureAction::None;  // None after EnterClock.
     uint64_t started_ = 0;
     uint64_t last_sample_ = 0;
     uint64_t ok_since_ = 0;

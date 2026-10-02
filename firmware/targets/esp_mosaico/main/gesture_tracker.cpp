@@ -7,7 +7,24 @@ namespace usage_panel::mosaico {
 namespace {
 // Dropouts up to this long keep a swipe or OK hold alive. A longer gap restarts
 // the track from the next usable sample; it does not require the hand to leave.
-constexpr uint64_t kMaxSampleGapMs = 250;
+// Frames arrive about every 125 ms and slower while the OK classifier or the
+// preview runs, so the limit must exceed one frame interval at that cadence.
+constexpr uint64_t kMaxSampleGapMs = 400;
+// Samples this soon after a swipe belong to the same stroke and cannot repeat it.
+constexpr uint64_t kSwipeCooldownMs = 500;
+// A swipe opposite to the previous one within this time is the hand returning.
+constexpr uint64_t kReturnStrokeMs = 1500;
+
+GestureAction opposite(GestureAction action)
+{
+    switch (action) {
+    case GestureAction::SwipeLeft: return GestureAction::SwipeRight;
+    case GestureAction::SwipeRight: return GestureAction::SwipeLeft;
+    case GestureAction::SwipeUp: return GestureAction::SwipeDown;
+    case GestureAction::SwipeDown: return GestureAction::SwipeUp;
+    default: return GestureAction::None;
+    }
+}
 }
 
 GestureEffect route_gesture(GestureAction action, bool allowed, bool asleep)
@@ -19,11 +36,15 @@ GestureEffect route_gesture(GestureAction action, bool allowed, bool asleep)
         ? GestureEffect::Next : GestureEffect::Previous;
 }
 
-void GestureTracker::reset()
+void GestureTracker::reset(uint64_t now)
 {
     const uint64_t last_action = last_action_;
+    const GestureAction last_swipe = last_swipe_;
     *this = GestureTracker{};
     last_action_ = last_action;
+    last_swipe_ = last_swipe;
+    // A page or screensaver change within the cooldown is the result of that swipe.
+    waiting_release_ = last_swipe == GestureAction::None || now - last_action > kSwipeCooldownMs;
 }
 
 GestureAction GestureTracker::update(const HandObservation& h, uint64_t now)
@@ -57,6 +78,8 @@ GestureAction GestureTracker::update(const HandObservation& h, uint64_t now)
     absent_ = false;
     progress_ = 0;
     if (waiting_release_) return GestureAction::None;
+    if (last_swipe_ != GestureAction::None && now - last_action_ < kSwipeCooldownMs)
+        return GestureAction::None;
 
     if (tracking_ && (now < last_sample_ || now - last_sample_ > kMaxSampleGapMs ||
         std::fabs(h.x - previous_.x) > std::max(0.18F, (h.width + previous_.width) * 0.75F) ||
@@ -92,6 +115,11 @@ GestureAction GestureTracker::update(const HandObservation& h, uint64_t now)
             action = dy < 0 ? GestureAction::SwipeUp : GestureAction::SwipeDown;
         }
     }
+    if (action != GestureAction::None && action == opposite(last_swipe_) &&
+        now - last_action_ < kReturnStrokeMs) {
+        tracking_ = holding_ok_ = false;
+        return GestureAction::None;
+    }
 
     if (std::isfinite(h.ok_score) && h.ok_score >= 0.85F) {
         if (!holding_ok_ || std::fabs(h.x - ok_x_) > 0.08F || std::fabs(h.y - ok_y_) > 0.08F) {
@@ -106,7 +134,9 @@ GestureAction GestureTracker::update(const HandObservation& h, uint64_t now)
         holding_ok_ = false;
     }
     if (action != GestureAction::None) {
-        waiting_release_ = true;
+        // Lowering the hand after OK must not wake the clock, so only OK waits for release.
+        waiting_release_ = action == GestureAction::EnterClock;
+        last_swipe_ = waiting_release_ ? GestureAction::None : action;
         last_action_ = now;
         tracking_ = holding_ok_ = false;
         progress_ = 0;

@@ -21,32 +21,49 @@ void arm(GestureTracker& tracker)
 }
 }
 
-TEST_CASE("swipes require release and issue exactly one directional command", "[gesture]")
+TEST_CASE("swipes repeat without release and ignore the same stroke and the return stroke", "[gesture]")
 {
     for (bool vertical : {false, true}) {
         for (int direction : {-1, 1}) {
-            const auto point = [vertical](float position) {
-                return vertical ? hand(0.5F, position) : hand(position);
+            // Positions are given for the positive direction and mirrored for the negative one.
+            const auto point = [vertical, direction](float position) {
+                const float mapped = 0.5F + direction * (position - 0.5F);
+                return vertical ? hand(0.5F, mapped) : hand(mapped);
             };
-            GestureTracker tracker;
-            arm(tracker);
-            TEST_ASSERT_EQUAL_INT(int(GestureAction::None), int(tracker.update(point(0.5F), 1500)));
-            TEST_ASSERT_EQUAL_INT(int(GestureAction::None), int(tracker.update(point(0.5F + direction * 0.15F), 1600)));
             const auto expected = vertical
                 ? (direction < 0 ? GestureAction::SwipeUp : GestureAction::SwipeDown)
                 : (direction < 0 ? GestureAction::SwipeLeft : GestureAction::SwipeRight);
-            TEST_ASSERT_EQUAL_INT(int(expected), int(tracker.update(point(0.5F + direction * 0.3F), 1700)));
-            for (unsigned t = 1800; t < 3000; t += 100)
-                TEST_ASSERT_EQUAL_INT(int(GestureAction::None), int(tracker.update(point(0.5F), t)));
-            tracker.update({}, 3000);
-            tracker.update(point(0.5F), 3100);
-            TEST_ASSERT_EQUAL_INT(int(GestureAction::None), int(tracker.update(point(0.8F), 3300)));
-            tracker.update({}, 3400);
-            tracker.update({}, 3800);
-            tracker.update(point(0.3F), 3900);
-            tracker.update(point(0.45F), 4000);
-            TEST_ASSERT_EQUAL_INT(int(vertical ? GestureAction::SwipeDown : GestureAction::SwipeRight),
-                                  int(tracker.update(point(0.6F), 4100)));
+            const auto reverse = vertical
+                ? (direction < 0 ? GestureAction::SwipeDown : GestureAction::SwipeUp)
+                : (direction < 0 ? GestureAction::SwipeRight : GestureAction::SwipeLeft);
+            const auto none = int(GestureAction::None);
+            GestureTracker tracker;
+            arm(tracker);
+            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.2F), 1500)));
+            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.35F), 1600)));
+            TEST_ASSERT_EQUAL_INT(int(expected), int(tracker.update(point(0.5F), 1700)));
+            tracker.reset(1800);  // The resulting page change keeps swipes armed.
+            // The rest of the same stroke falls inside the cooldown.
+            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.65F), 1800)));
+            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.8F), 1900)));
+            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.95F), 2000)));
+            // The hand returns through the view without leaving it.
+            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.8F), 2300)));
+            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.6F), 2400)));
+            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.4F), 2500)));
+            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.4F), 2600)));
+            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.55F), 2700)));
+            TEST_ASSERT_EQUAL_INT(int(expected), int(tracker.update(point(0.7F), 2800)));
+            // A stationary hand issues nothing; the reverse direction works once the return window ends.
+            for (unsigned t = 2900; t < 4500; t += 100)
+                TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.7F), t)));
+            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.55F), 4500)));
+            TEST_ASSERT_EQUAL_INT(int(reverse), int(tracker.update(point(0.4F), 4600)));
+            // A context change unrelated to a swipe requires the view to clear again.
+            tracker.reset(6000);
+            tracker.update(point(0.2F), 6100);
+            tracker.update(point(0.35F), 6200);
+            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.5F), 6300)));
         }
     }
 }
@@ -59,7 +76,7 @@ TEST_CASE("OK requires a stable hold and release after context invalidation", "[
         TEST_ASSERT_EQUAL_INT(int(GestureAction::None), int(tracker.update(hand(0.5F, 0.5F, 0.95F), t)));
     TEST_ASSERT_EQUAL_INT(80, tracker.hold_progress());
     TEST_ASSERT_EQUAL_INT(int(GestureAction::EnterClock), int(tracker.update(hand(0.5F, 0.5F, 0.95F), 2000)));
-    tracker.reset();
+    tracker.reset(2000);
     for (unsigned t = 2100; t <= 3000; t += 100)
         TEST_ASSERT_EQUAL_INT(int(GestureAction::None), int(tracker.update(hand(0.5F, 0.5F, 0.95F), t)));
 }
@@ -88,14 +105,23 @@ TEST_CASE("single dropouts keep a swipe and an OK hold alive", "[gesture]")
     TEST_ASSERT_EQUAL_INT(int(GestureAction::EnterClock), int(tracker.update(hand(0.5F, 0.5F, 0.95F), 2000)));
 }
 
+TEST_CASE("OK hold completes at a 300 ms frame interval", "[gesture]")
+{
+    GestureTracker tracker;
+    arm(tracker);
+    tracker.update(hand(0.5F, 0.5F, 0.95F), 1500);
+    tracker.update(hand(0.5F, 0.5F, 0.95F), 1800);
+    TEST_ASSERT_EQUAL_INT(int(GestureAction::EnterClock), int(tracker.update(hand(0.5F, 0.5F, 0.95F), 2100)));
+}
+
 TEST_CASE("slow frames and position jumps restart tracking without requiring release", "[gesture]")
 {
     GestureTracker tracker;
     arm(tracker);
     tracker.update(hand(0.2F), 1500);
-    tracker.update(hand(0.2F), 1900);  // 400 ms gap: restart here.
-    tracker.update(hand(0.35F), 2000);
-    TEST_ASSERT_EQUAL_INT(int(GestureAction::SwipeRight), int(tracker.update(hand(0.5F), 2100)));
+    tracker.update(hand(0.2F), 2000);  // 500 ms gap: restart here.
+    tracker.update(hand(0.35F), 2100);
+    TEST_ASSERT_EQUAL_INT(int(GestureAction::SwipeRight), int(tracker.update(hand(0.5F), 2200)));
 
     tracker.update({}, 2300);
     tracker.update({}, 2700);

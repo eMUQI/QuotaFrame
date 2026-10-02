@@ -113,7 +113,7 @@ void GestureInput::run()
         const bool enabled = context & kEnabled;
         const bool allowed = context & kAllowed;
         if (context != previous_context) {
-            tracker.reset();
+            tracker.reset(esp_timer_get_time() / 1000);
             progress_ = 0;
             previous_context = context;
         }
@@ -190,12 +190,12 @@ void GestureInput::run()
                 continue;
             }
             detector->set_score_thr(0.5F);
-            tracker.reset();
+            tracker.reset(esp_timer_get_time() / 1000);
             active = true;
             capture_failures = 0;
             warmup = 3;
             status_ = GestureStatus::Ready;
-            ESP_LOGI(TAG, "local gestures ready; remove hand before starting a new action");
+            ESP_LOGI(TAG, "local gestures ready; input starts after the view is clear of hands");
         }
         const uint64_t started_us = esp_timer_get_time();
         // Display rotation maps logical pixels to physical coordinates; camera
@@ -208,7 +208,7 @@ void GestureInput::run()
         const bool mirror = false;
 #endif
         if (!camera.read_rgb(rgb, rotation, mirror)) {
-            tracker.reset();
+            tracker.reset(esp_timer_get_time() / 1000);
             progress_ = 0;
             if (++capture_failures >= 3) {
                 record(camera.failure(), camera.failure_code());
@@ -220,7 +220,6 @@ void GestureInput::run()
         }
         capture_failures = 0;
         if (warmup) { --warmup; continue; }
-        if (context != context_.load()) continue;
         const auto image_size = camera.image_size(rotation);
         dl::image::img_t image{rgb,
             static_cast<uint16_t>(image_size.width),
@@ -251,10 +250,18 @@ void GestureInput::run()
             }
         }
         const uint64_t finished_us = esp_timer_get_time();
-        if (context != context_.load()) continue;
-        const GestureAction action = tracker.update(observation, finished_us / 1000);
-        progress_ = tracker.hold_progress();
+        // A context change during the frame discards it as input; it is still previewed.
+        const bool stale = context != context_.load();
+        const GestureAction action = stale ? GestureAction::None
+                                           : tracker.update(observation, finished_us / 1000);
+        if (!stale) progress_ = tracker.hold_progress();
+        if (action != GestureAction::None) {
+            ESP_LOGI(TAG, "tracker action=%u", unsigned(action));
+            const GestureEvent event{action, context, finished_us / 1000};
+            xQueueSend(queue_, &event, 0);
+        }
 #if CONFIG_MOSAICO_CAMERA_PREVIEW
+        // The sink waits for the display lock; events are queued first because they expire.
         if (preview_sink_) preview_sink_(preview_context_, rgb, image.width, image.height, observation);
 #endif
         // Calibration aid: normalized observations in percent, at most once per second.
@@ -264,11 +271,6 @@ void GestureInput::run()
                      int(observation.y * 100), int(observation.width * 100),
                      int(observation.height * 100), int(observation.ok_score * 100));
             next_detection_log = finished_us / 1000 + 1000;
-        }
-        if (action != GestureAction::None) {
-            ESP_LOGI(TAG, "tracker action=%u", unsigned(action));
-            const GestureEvent event{action, context, finished_us / 1000};
-            xQueueSend(queue_, &event, 0);
         }
         const uint64_t feedback_done_us = esp_timer_get_time();
         capture_us += captured_us - started_us;
