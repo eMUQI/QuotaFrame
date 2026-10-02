@@ -465,6 +465,9 @@ void DisplayUi::build_header(lv_obj_t* screen)
         battery_segments_[i] = lv_obj_create(body);
         lv_obj_set_pos(battery_segments_[i], 2 + i * 6, 2);
         lv_obj_set_size(battery_segments_[i], 5, 8);
+        // The first frame precedes the first battery reading and shows it as unavailable.
+        lv_obj_set_style_bg_color(battery_segments_[i], lv_color_hex(COLOR_BATTERY_OFF), 0);
+        lv_obj_set_style_bg_opa(battery_segments_[i], LV_OPA_COVER, 0);
         lv_obj_set_style_border_width(battery_segments_[i], 0, 0);
         lv_obj_set_style_radius(battery_segments_[i], 1, 0);
         lv_obj_set_style_pad_all(battery_segments_[i], 0, 0);
