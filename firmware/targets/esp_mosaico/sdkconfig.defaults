@@ -12,6 +12,10 @@ CONFIG_SPIRAM_MODE_OCT=y
 CONFIG_SPIRAM_SPEED_250M=y
 CONFIG_SPIRAM_XIP_FROM_PSRAM=y
 
+# The driver default of 2000 ms delays the first battery reading; the driver still
+# confirms the sealed state after this wait and fails initialization otherwise.
+CONFIG_BQ27220_SEAL_SETTLE_MS=200
+
 CONFIG_BSP_DISPLAY_ENABLE=y
 CONFIG_BSP_CO5300_ENABLE_TE=y
 
