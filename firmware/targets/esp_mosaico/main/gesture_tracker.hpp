@@ -22,8 +22,8 @@ struct HandObservation {
 };
 
 /**
- * True when one hand moved little enough between consecutive frames for its pose to be
- * classified. Classifying a moving hand lengthens the frame interval and costs a stroke samples.
+ * Returns whether consecutive single-hand observations satisfy the pose-classification
+ * motion threshold. Skipping classification during motion preserves trajectory sampling cadence.
  */
 bool hand_is_steady(const HandObservation& previous, const HandObservation& current);
 

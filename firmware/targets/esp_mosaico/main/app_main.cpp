@@ -89,8 +89,8 @@ std::atomic<bool> ai_button_pressed{false};
 PowerMonitor power_monitor;
 std::atomic<bool> power_monitor_ready{false};
 
-// The gauge driver waits out fixed settle times of several seconds while sealing, so the
-// gauge attaches on its own task. The battery stays hidden until it is ready.
+// Gauge configuration and settling run asynchronously to avoid delaying BLE and UI startup.
+// The main loop must observe the readiness flag before reading the gauge.
 void power_monitor_task(void* /*context*/)
 {
     if (power_monitor.begin()) {
@@ -173,11 +173,10 @@ extern "C" void app_main(void)
 
     ScreenRotation initial_rotation = kFixedRotation;
     OrientationTracker orientation_tracker;
-    // The IMU shares the board I2C bus, which bsp_display_start() brings up
-    // together with the VCC_3V3 rail, so the panel has to come first.
+    // Display initialization establishes the shared I2C bus and the IMU's VCC_3V3 supply.
     ESP_ERROR_CHECK(ui.begin(initial_rotation) ? ESP_OK : ESP_FAIL);
 
-    // Started first so the gauge has attached before BMI270 initialization uses the bus.
+    // Start gauge initialization on the established bus without blocking other peripheral setup.
     if (xTaskCreate(power_monitor_task, "power_init", 4096, nullptr, 1, nullptr) != pdPASS) {
         ESP_LOGW(TAG, "BQ27220 start task unavailable; battery will be hidden");
     }
@@ -185,8 +184,8 @@ extern "C" void app_main(void)
     // Advertising starts before the remaining peripherals so the bridge can reconnect
     // while they initialize; link events wait in the queue for the main loop.
     ESP_ERROR_CHECK(events.begin() ? ESP_OK : ESP_ERR_NO_MEM);
-    // Wired before BLE so no peer can reach the manifest path ungated; the
-    // verdict itself is published by the main-loop power poll below.
+    // Install the power gate before BLE can receive OTA manifests.
+    // The power verdict remains unavailable until the main-loop poll obtains a valid reading.
     ota.set_power_source(&ota_power_source);
     ESP_ERROR_CHECK(ble.start(events, ble_config));
 

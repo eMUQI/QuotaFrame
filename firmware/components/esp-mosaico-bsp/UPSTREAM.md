@@ -36,8 +36,9 @@ written; upstream shows undefined frame memory at full brightness during that de
 
 `bsp_battery_init()` does not seal the BQ27220 again after `bq27220_create()`. The
 driver seals and verifies on every path that returns a handle, and each seal waits
-`CONFIG_BQ27220_SEAL_SETTLE_MS` (2000 ms) unconditionally, so the upstream call only
-added that wait.
+`CONFIG_BQ27220_SEAL_SETTLE_MS` unconditionally, so the upstream call only added
+that wait. The driver default is 2000 ms; this target selects 200 ms in
+`sdkconfig.defaults` and retains the sealed-state check after the wait.
 
 When re-syncing, preserve these integration changes as well as the manifest
 constraint and review the repository diff for other board-specific changes.

@@ -1,4 +1,4 @@
-# Camera and gesture dependencies
+# Experimental camera gestures: dependencies
 
 ## Repository reference map
 
@@ -17,9 +17,9 @@ commits below and [dependencies.lock](dependencies.lock), not the latest branch.
 
 ## Continuing this implementation
 
-- Read the [interaction design and implementation record](../../../docs/design/mosaico-gesture-input.md) for swipe direction, wake-only behavior, OK hold and protected states.
+- Read the [interaction design](../../../docs/design/mosaico-gesture-input.md) for page cycling, wake-only behavior, OK / thumbs-up holds and protected states.
 - Start in [gesture_camera.cpp](main/gesture_camera.cpp) for capture/pin ownership, [gesture_image.cpp](main/gesture_image.cpp) for image orientation, [gesture_tracker.cpp](main/gesture_tracker.cpp) for temporal recognition, and [gesture_input.cpp](main/gesture_input.cpp) for the worker lifecycle. [app_main.cpp](main/app_main.cpp) owns action routing and UI state.
-- Follow the [installation and hardware acceptance guide](../../../docs/validation/mosaico-gestures.md). Software builds/tests passed at the initial implementation; camera orientation, actual recognition, UI layout, resource use and power remain hardware acceptance items.
+- Follow the [usage and installation guide](../../../docs/validation/mosaico-gestures.md). Camera gestures are experimental and disabled by default.
 - Preserve the 7 MiB dual-slot layout, default-off capture setting, local-only image processing and existing BSP display fixes. Recheck the current tree and lockfile before changing dependencies; do not edit generated `managed_components` as the source of truth.
 
 ## Locked component versions
@@ -32,7 +32,7 @@ The target uses registry components pinned by `dependencies.lock`:
 | espressif/esp_cam_sensor | 2.6.0 | OV3640 and SC101IOT sensor configuration |
 | espressif/esp-dl | 3.3.11 | S31 inference and preprocessing |
 | espressif/hand_detect | 0.2.0 | ESPDet-Pico 224×224 hand detection |
-| espressif/hand_gesture_recognition | 0.2.0 | MobileNetV2 128×128 classification; `ok` command |
+| espressif/hand_gesture_recognition | 0.2.0 | MobileNetV2 128×128 classification; `ok` and `like` commands |
 
 The published model components explicitly select their `models/p4` resources
 for `esp32s31`. Both models are embedded in the application so A/B update and
@@ -76,8 +76,8 @@ SC101IOT produces 320x180 RGB888 before rotation, and OV3640 produces 320x240.
 The model and debug preview receive the actual rotated dimensions. The two
 720p UYVY capture buffers require about 3.52 MiB; the startup precheck requires
 at least a 9 MiB contiguous free PSRAM block for capture, model arenas and UI load.
-The nominal sensor frame rate and close-range recognition require hardware
-verification on the CameraBoard's external oscillator.
+The configured sensor frame rate differs from the end-to-end recognition rate,
+which also includes conversion, inference and scheduling.
 
 `CONFIG_MOSAICO_CAMERA_ROTATION` applies the mounting correction after the
 horizontal mirror; the inverse of the actual applied display rotation follows

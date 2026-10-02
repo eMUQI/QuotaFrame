@@ -101,8 +101,8 @@ void GestureInput::run()
     uint64_t measured_us = 0;
     uint64_t capture_us = 0, detect_us = 0, classify_us = 0, feedback_us = 0;
     unsigned warmup = 0;
-    // Start-up failures scroll past during boot, so the reason is repeated
-    // after cleanup until the switch is turned off.
+    // Retain failure details for periodic diagnostics while recognition is disabled.
+    // Disabling capture clears recoverable faults; cleanup faults persist until reboot.
     const char* failure = nullptr;
     int failure_code = 0;
     uint64_t next_failure_log = 0;

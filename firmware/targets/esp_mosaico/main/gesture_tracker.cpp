@@ -5,25 +5,22 @@
 
 namespace usage_panel::mosaico {
 namespace {
-// Dropouts up to this long keep a swipe or OK hold alive. A longer gap restarts
-// the track from the next usable sample; it does not require the hand to leave.
-// Frames arrive about every 125 ms and slower while the OK classifier or the
-// preview runs, so the limit must exceed one frame interval at that cadence.
+// Short detection gaps preserve the current swipe or pose hold. Longer gaps restart
+// tracking at the next usable sample. The limit allows for classification and preview latency.
 constexpr uint64_t kMaxSampleGapMs = 400;
-// After a swipe or wave, motion must cease for this long before the next command, so the
+// After a swipe or wave, motion must cease for this long before the next swipe or wave, so the
 // follow-through, an immediate return and the rest of a longer wave cannot repeat it.
 constexpr uint64_t kSettleMs = 400;
-// A swipe opposite to the previous one within this time is the hand returning.
+// An opposite swipe within this interval is treated as the return stroke.
 constexpr uint64_t kReturnStrokeMs = 1500;
 constexpr uint64_t kOkHoldMs = 500;
-// Samples of one hold are at most kMaxSampleGapMs apart, so a completed hold spans three.
+// A completed hold requires at least three samples because each gap is shorter than the hold.
 static_assert(kMaxSampleGapMs < kOkHoldMs);
-// Frame-to-frame movement up to this distance is detector jitter around a resting hand.
+// Frame-to-frame movement up to this distance is treated as detector jitter.
 constexpr float kRestStep = 0.03F;
-// Beyond this frame-to-frame movement the hand is mid-stroke and its pose is not classified.
+// Larger frame-to-frame movement skips pose classification to preserve motion sampling cadence.
 constexpr float kSteadyStep = 0.05F;
-// A wave is three alternating horizontal legs of at least this length. Sampling at about
-// 8 fps sees roughly two thirds of the true travel between reversals.
+// Each of the three alternating horizontal wave legs must cover this fraction of the image width.
 constexpr float kWaveLeg = 0.12F;
 
 GestureAction opposite(GestureAction action)
@@ -43,7 +40,7 @@ GestureEffect route_gesture(GestureAction action, bool allowed, bool asleep)
     if (!allowed || action == GestureAction::None) return GestureEffect::None;
     if (action == GestureAction::EnterClock) return asleep ? GestureEffect::None : GestureEffect::Clock;
     if (asleep) return GestureEffect::Wake;
-    // Every direction advances, so the tracker's return-stroke window never drops a command.
+    // Swipes and waves share forward-only navigation.
     return GestureEffect::Next;
 }
 
@@ -83,7 +80,7 @@ void GestureTracker::begin_stroke(const HandObservation& h, uint64_t now)
 GestureAction GestureTracker::update(const HandObservation& h, uint64_t now)
 {
     if (h.count > 1) {
-        // Several hands make the command owner ambiguous; wait for the view to clear.
+        // Multiple hands invalidate ownership and require release before another swipe or pose.
         absent_ = false;
         tracking_ = holding_ok_ = false;
         waiting_release_ = true;
@@ -154,8 +151,8 @@ GestureAction GestureTracker::update(const HandObservation& h, uint64_t now)
 
     GestureAction action = GestureAction::None;
     if (!settling_) {
-        // Until the hand has left the view, a stroke may be the hand withdrawing after a pose
-        // or a touch. A wave cannot be, so it alone is accepted without that release.
+        // Hand withdrawal after a pose or touch can resemble a swipe, so swipes require release.
+        // Waves use alternating horizontal motion as their confirmation criterion.
         if (!waiting_release_ && samples_ >= 3 && now - started_ >= 150 && now - started_ <= 900) {
             if (std::fabs(dx) >= 0.25F && std::fabs(dx) >= 2 * max_dy_ &&
                 max_dy_ <= 0.15F && std::fabs(dx) >= path_x_ * 0.75F) {
@@ -190,7 +187,7 @@ GestureAction GestureTracker::update(const HandObservation& h, uint64_t now)
         holding_ok_ = false;
     }
     if (action != GestureAction::None) {
-        // Lowering the hand after OK must not wake the clock, so only OK waits for release.
+        // Clock poses require release before another swipe or pose to suppress withdrawal-triggered wakeups.
         waiting_release_ = action == GestureAction::EnterClock;
         last_swipe_ = waiting_release_ ? GestureAction::None : action;
         last_action_ = last_motion_ = now;
@@ -200,7 +197,7 @@ GestureAction GestureTracker::update(const HandObservation& h, uint64_t now)
         leg_x_ = 0;
         legs_ = 0;
     } else if (now - started_ > 900) {
-        // Motion that qualified as nothing so far must not hold back a later stroke.
+        // Restart expired candidates so subsequent motion can form a new stroke.
         begin_stroke(h, now);
     }
     return action;

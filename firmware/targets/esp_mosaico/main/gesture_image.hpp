@@ -14,14 +14,30 @@ struct GestureImageSize {
     unsigned height;
 };
 
-/** Fits the complete frame within 320x240, preserving aspect ratio before rotation.
- * Returns zero dimensions for invalid input or an unsupported rotation.
+/**
+ * Fits the complete frame within 320x240 before rotation, preserving its aspect ratio
+ * to integer-pixel precision. Odd quarter-turn counts swap the output dimensions.
+ * @param width Source width in pixels; must be even and within 2..4096.
+ * @param height Source height in pixels; must be within 1..4096.
+ * @param quarter_turns Clockwise rotation in 90-degree steps; valid range is 0..3.
+ * @return Output dimensions, or zero dimensions if any argument is invalid.
  */
 GestureImageSize gesture_image_size(unsigned width, unsigned height, unsigned quarter_turns);
 
-/** Downsamples packed UYVY to RGB888, mirrors horizontally, then rotates clockwise.
- * Output capacity must be at least kGestureImageBytes. Actual packed dimensions
- * are returned by gesture_image_size(); no cropping or padding is applied.
+/**
+ * Converts the complete UYVY frame to RGB888 using gesture_image_size() dimensions,
+ * then applies horizontal mirroring and clockwise rotation. Output has no row padding.
+ * Both buffers remain caller-owned and must not overlap; neither pointer is retained.
+ * @param src Non-null source buffer containing packed UYVY rows with optional row padding.
+ * @param size Source buffer size in bytes; must be at least stride * height.
+ * @param width Source width in pixels; must be even and within 2..4096.
+ * @param height Source height in pixels; must be within 1..4096.
+ * @param stride Source row stride in bytes; must be at least width * 2.
+ * @param dst Non-null output buffer with at least kGestureImageBytes capacity; capacity is not checked.
+ * @param quarter_turns Clockwise rotation in 90-degree steps; valid range is 0..3.
+ * @param mirror Whether to mirror horizontally before rotation.
+ * @return True after conversion; false for null pointers, invalid dimensions or rotation,
+ *         insufficient source size, or an invalid stride. Validation failure leaves dst unchanged.
  */
 bool prepare_gesture_image(const uint8_t* src, size_t size, unsigned width,
                            unsigned height, unsigned stride, uint8_t* dst,

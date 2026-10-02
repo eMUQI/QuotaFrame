@@ -19,7 +19,7 @@
 | [AMOLED 性能参考](validation/amoled-performance.md) | 内存、刷新耗时与测量条件 |
 | [ePaper 刷新参考](validation/epaper-refresh.md) | 局刷数据及光学验证边界 |
 | [接入架构](design/open-device-access.md) | 状态归属、连接与更新生命周期 |
-| [Mosaico 手势输入规划](design/mosaico-gesture-input.md) | 摄像头、挥手翻页/唤醒与分阶段验收 |
+| [Mosaico 实验性手势](design/mosaico-gesture-input.md) | 操作规则、处理链路与识别参数 |
 | [接入协议](../protocol/open-device-access.md) | 设备线上字段与校验约束 |
 | [硬件移植](PORTING.md) | 新目标目录与硬件验收 |
 | [设计语言](design/amoled-ui.md) | AMOLED 界面规范 |

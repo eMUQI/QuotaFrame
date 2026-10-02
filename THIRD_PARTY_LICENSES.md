@@ -173,6 +173,7 @@ For ESP Component Registry entries, `Registry license` is the API value for the 
 - Source: https://components.espressif.com/components/espressif/usb/versions/1.3.0
 - SPDX: `Apache-2.0`
 - Copyright/notice: https://github.com/espressif/esp-usb/blob/ded385702ecae4d5c15c497149062ce577fa167a/host/usb/LICENSE
+- ESP-Mosaico version: `1.5.0`; source: https://components.espressif.com/components/espressif/usb/versions/1.5.0; copyright/notice: https://github.com/espressif/esp-usb/blob/eb4618660a83e80cd57dcda736edbfa884cb88cc/host/usb/LICENSE
 
 ## `idf`
 
