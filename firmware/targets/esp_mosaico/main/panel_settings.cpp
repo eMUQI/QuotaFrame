@@ -20,14 +20,16 @@ bool valid(const DisplaySettings& settings)
 
 PanelSettings load_panel_settings(DisplaySettings defaults)
 {
+    // Firmware without camera gestures stored brightness and timeout as separate
+    // keys in the shared "display" namespace; they apply until the next save.
     nvs_handle_t handle;
-    if (nvs_open(kNamespace, NVS_READONLY, &handle) != ESP_OK) return {defaults};
+    if (nvs_open(kNamespace, NVS_READONLY, &handle) != ESP_OK) return {load_display_settings(defaults)};
     uint32_t packed = 0;
     const esp_err_t error = nvs_get_u32(handle, kSettingsKey, &packed);
     nvs_close(handle);
     const DisplaySettings display{static_cast<uint8_t>(packed & kBrightnessMask),
                                   packed >> kTimeoutShift};
-    if (error != ESP_OK || !valid(display)) return {defaults};
+    if (error != ESP_OK || !valid(display)) return {load_display_settings(defaults)};
     return {display, (packed & kCameraMask) != 0};
 }
 

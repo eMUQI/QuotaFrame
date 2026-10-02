@@ -47,7 +47,7 @@ eim run "idf.py -C firmware/targets/esp_mosaico build" v6.1
 
 一段连续挥动只执行一次，手停稳后再做下一次动作。设置、配对和 OTA 期间暂停手势输入，隐藏预览。触摸和 AI 键继续可用；时钟中摄像头仍工作，开启手势会增加耗电。
 
-亮度、自动时钟超时和相机开关作为一条 NVS 记录保存；记录缺失或无效时使用默认显示设置并关闭相机。模型随代码内嵌应用，在当前双槽分区中共同更新。使用、安装和故障处理见[手势指南](../../../docs/validation/mosaico-gestures.md)，实现结构见[手势设计](../../../docs/design/mosaico-gesture-input.md)，固定版本、参考仓库和模型摘要见 [CAMERA_UPSTREAM.md](CAMERA_UPSTREAM.md)。
+亮度、自动时钟超时和相机开关作为一条 NVS 记录保存；记录缺失或无效时关闭相机，亮度和自动时钟超时沿用旧版固件保存的值，没有则使用默认值。模型随代码内嵌应用，在当前双槽分区中共同更新。使用、安装和故障处理见[手势指南](../../../docs/validation/mosaico-gestures.md)，实现结构见[手势设计](../../../docs/design/mosaico-gesture-input.md)，固定版本、参考仓库和模型摘要见 [CAMERA_UPSTREAM.md](CAMERA_UPSTREAM.md)。
 
 ### 显示刷新
 

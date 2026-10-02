@@ -50,3 +50,31 @@ TEST_CASE("missing or invalid panel records use defaults with capture off", "[se
     TEST_ASSERT_EQUAL(60, actual.display.clock_timeout_seconds);
     TEST_ASSERT_FALSE(actual.camera_enabled);
 }
+
+TEST_CASE("display keys from earlier firmware apply until a panel record is saved", "[settings]")
+{
+    TEST_ASSERT_EQUAL(ESP_OK, nvs_flash_init());
+    nvs_handle_t handle;
+    TEST_ASSERT_EQUAL(ESP_OK, nvs_open("mosaico", NVS_READWRITE, &handle));
+    const esp_err_t erased = nvs_erase_key(handle, "settings");
+    TEST_ASSERT_TRUE(erased == ESP_OK || erased == ESP_ERR_NVS_NOT_FOUND);
+    TEST_ASSERT_EQUAL(ESP_OK, nvs_commit(handle));
+    nvs_close(handle);
+    TEST_ASSERT_EQUAL(ESP_OK, save_display_settings({70, 600}));
+
+    auto actual = load_panel_settings({40, 300});
+    TEST_ASSERT_EQUAL(70, actual.display.brightness);
+    TEST_ASSERT_EQUAL(600, actual.display.clock_timeout_seconds);
+    TEST_ASSERT_FALSE(actual.camera_enabled);
+
+    TEST_ASSERT_EQUAL(ESP_OK, save_panel_settings({{20, 60}, true}));
+    actual = load_panel_settings({40, 300});
+    TEST_ASSERT_EQUAL(20, actual.display.brightness);
+    TEST_ASSERT_EQUAL(60, actual.display.clock_timeout_seconds);
+    TEST_ASSERT_TRUE(actual.camera_enabled);
+
+    TEST_ASSERT_EQUAL(ESP_OK, nvs_open("display", NVS_READWRITE, &handle));
+    TEST_ASSERT_EQUAL(ESP_OK, nvs_erase_all(handle));
+    TEST_ASSERT_EQUAL(ESP_OK, nvs_commit(handle));
+    nvs_close(handle);
+}
