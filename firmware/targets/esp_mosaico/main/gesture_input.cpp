@@ -6,6 +6,7 @@
 #include "freertos/task.h"
 
 #if CONFIG_MOSAICO_GESTURE_INPUT
+#include <algorithm>
 #include <cstring>
 #include <memory>
 #include <new>
@@ -25,7 +26,8 @@ constexpr uint32_t kEnabled = 1;
 constexpr uint32_t kAllowed = 2;
 constexpr uint32_t kAsleep = 4;
 constexpr uint32_t kContextMask = 0x7f;
-constexpr uint32_t kGeneration = 0x80;
+constexpr uint32_t kAcceptedGesture = 0x80;
+constexpr uint32_t kGeneration = 0x100;
 constexpr char TAG[] = "gesture_input";
 // Transient start-up failures are retried as in esp-vision's camera init.
 constexpr unsigned kCameraStartAttempts = 3;
@@ -47,20 +49,22 @@ bool GestureInput::begin()
     return true;
 }
 
-void GestureInput::configure(bool enabled, bool allowed, bool asleep, Page page, ScreenRotation rotation)
+void GestureInput::configure(bool enabled, bool allowed, bool asleep, Page page, ScreenRotation rotation,
+                             bool accepted_gesture)
 {
     const uint32_t flags = (enabled ? kEnabled : 0) | (allowed ? kAllowed : 0) |
         (asleep ? kAsleep : 0) | (uint32_t(rotation) << 3) | (uint32_t(page) << 5);
     const uint32_t old = context_.load();
-    if ((old & kContextMask) != flags) {
-        context_ = ((old + kGeneration) & ~kContextMask) | flags;
+    if ((old & kContextMask) != flags || accepted_gesture) {
+        context_ = ((old + kGeneration) & ~(kContextMask | kAcceptedGesture)) | flags |
+            (accepted_gesture ? kAcceptedGesture : 0);
         progress_ = 0;
     }
 }
 
 void GestureInput::invalidate()
 {
-    context_.fetch_add(kGeneration);
+    context_ = (context_.load() + kGeneration) & ~kAcceptedGesture;
     progress_ = 0;
 }
 
@@ -84,7 +88,7 @@ void GestureInput::run()
     GestureCamera camera;
     GestureTracker tracker;
     std::unique_ptr<HandDetect> detector;
-    std::unique_ptr<HandGestureRecognizer> recognizer;
+    std::unique_ptr<HandGestureCls> recognizer;
     uint8_t* rgb = nullptr;
     uint32_t previous_context = UINT32_MAX;
     bool active = false;
@@ -92,7 +96,7 @@ void GestureInput::run()
     bool fatal_cleanup = false;
     unsigned capture_failures = 0;
     uint64_t next_report = 0;
-    uint64_t next_detection_log = 0;
+    HandObservation previous_observation{};
     unsigned measured_frames = 0;
     uint64_t measured_us = 0;
     uint64_t capture_us = 0, detect_us = 0, classify_us = 0, feedback_us = 0;
@@ -113,7 +117,7 @@ void GestureInput::run()
         const bool enabled = context & kEnabled;
         const bool allowed = context & kAllowed;
         if (context != previous_context) {
-            tracker.reset(esp_timer_get_time() / 1000);
+            tracker.reset((context & kAcceptedGesture) != 0);
             progress_ = 0;
             previous_context = context;
         }
@@ -182,7 +186,8 @@ void GestureInput::run()
                 continue;
             }
             detector.reset(new (std::nothrow) HandDetect(HandDetect::ESPDET_PICO_224_224_HAND, false));
-            recognizer.reset(new (std::nothrow) HandGestureRecognizer());
+            // ESP-DL 3.3.11 requires the classifier model to be loaded before destruction.
+            recognizer.reset(new (std::nothrow) HandGestureCls(HandGestureCls::MOBILENETV2_0_5_S8_V1, false));
             if (!detector || !recognizer) {
                 record("model allocation", 0);
                 status_ = GestureStatus::MemoryError;
@@ -190,7 +195,7 @@ void GestureInput::run()
                 continue;
             }
             detector->set_score_thr(0.5F);
-            tracker.reset(esp_timer_get_time() / 1000);
+            tracker.reset();
             active = true;
             capture_failures = 0;
             warmup = 3;
@@ -208,7 +213,7 @@ void GestureInput::run()
         const bool mirror = false;
 #endif
         if (!camera.read_rgb(rgb, rotation, mirror)) {
-            tracker.reset(esp_timer_get_time() / 1000);
+            tracker.reset();
             progress_ = 0;
             if (++capture_failures >= 3) {
                 record(camera.failure(), camera.failure_code());
@@ -239,16 +244,19 @@ void GestureInput::run()
                 observation.height = float(hand.box[3] - hand.box[1]) / image.height;
                 observation.score = hand.score;
                 if (!(context & kAsleep) && hand.score >= 0.65F &&
+                    hand_is_steady(previous_observation, observation) &&
                     hand.box[0] >= 0 && hand.box[1] >= 0 && hand.box[2] <= image.width &&
                     hand.box[3] <= image.height && hand.box[2] > hand.box[0] && hand.box[3] > hand.box[1]) {
-                    const auto classes = recognizer->recognize(image, hands);
+                    const auto classes = recognizer->run_crop(image, hand.box);
                     for (const auto& result : classes) {
-                        if (result.cat_name && std::strcmp(result.cat_name, "ok") == 0)
-                            observation.ok_score = result.score;
+                        if (result.cat_name && (std::strcmp(result.cat_name, "ok") == 0 ||
+                                                std::strcmp(result.cat_name, "like") == 0))
+                            observation.ok_score = std::max(observation.ok_score, result.score);
                     }
                 }
             }
         }
+        previous_observation = observation;
         const uint64_t finished_us = esp_timer_get_time();
         // A context change during the frame discards it as input; it is still previewed.
         const bool stale = context != context_.load();
@@ -264,13 +272,13 @@ void GestureInput::run()
         // The sink waits for the display lock; events are queued first because they expire.
         if (preview_sink_) preview_sink_(preview_context_, rgb, image.width, image.height, observation);
 #endif
-        // Calibration aid: normalized observations in percent, at most once per second.
-        if (observation.count && finished_us / 1000 >= next_detection_log) {
-            ESP_LOGI(TAG, "hand count=%u score=%d center=(%d,%d) size=(%d,%d) ok=%d",
-                     observation.count, int(observation.score * 100), int(observation.x * 100),
-                     int(observation.y * 100), int(observation.width * 100),
-                     int(observation.height * 100), int(observation.ok_score * 100));
-            next_detection_log = finished_us / 1000 + 1000;
+        // Calibration aid: every observation with a hand, in per mille with the time given to
+        // the tracker, so that a captured log can be replayed through GestureTracker.
+        if (observation.count) {
+            ESP_LOGI(TAG, "hand t=%u n=%u s=%d c=%d,%d wh=%d,%d ok=%d",
+                     unsigned(finished_us / 1000), observation.count, int(observation.score * 1000),
+                     int(observation.x * 1000), int(observation.y * 1000), int(observation.width * 1000),
+                     int(observation.height * 1000), int(observation.ok_score * 1000));
         }
         const uint64_t feedback_done_us = esp_timer_get_time();
         capture_us += captured_us - started_us;

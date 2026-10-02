@@ -31,7 +31,9 @@ public:
         preview_context_ = context;
     }
     bool begin();
-    void configure(bool enabled, bool allowed, bool asleep, Page page, ScreenRotation rotation);
+    /** Main task only. accepted_gesture marks a context change caused by a consumed gesture. */
+    void configure(bool enabled, bool allowed, bool asleep, Page page, ScreenRotation rotation,
+                   bool accepted_gesture = false);
     /** Cancels pending recognition after another input is accepted. Main task only. */
     void invalidate();
     bool take(GestureEvent& event, uint64_t now_ms);

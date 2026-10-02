@@ -503,15 +503,15 @@ extern "C" void app_main(void)
                 if (!screensaver.view(now_ms).active) page = screensaver.restore_page();
             } else if (effect == GestureEffect::Clock) {
                 screensaver.enter_clock(now_ms, page);
-            } else if (effect == GestureEffect::Next || effect == GestureEffect::Previous) {
-                page = page_after_swipe(page, effect == GestureEffect::Next
-                    ? SwipeDirection::Next : SwipeDirection::Previous);
+            } else if (effect == GestureEffect::Next) {
+                page = page_after_swipe(page, SwipeDirection::Next);
                 screensaver.reset(now_ms, page);
             }
             if (effect != GestureEffect::None) {
                 ui.request_page(page);
                 status_page.store(page, std::memory_order_relaxed);
-                gestures.invalidate();
+                gestures.configure(camera_enabled, gesture_allowed,
+                    screensaver.view(now_ms).active, page, applied_rotation, true);
                 ESP_LOGI(TAG, "gesture action=%u effect=%u", unsigned(gesture.action), unsigned(effect));
                 dirty = true;
             }

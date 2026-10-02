@@ -21,7 +21,7 @@ void arm(GestureTracker& tracker)
 }
 }
 
-TEST_CASE("swipes repeat without release and ignore the same stroke and the return stroke", "[gesture]")
+TEST_CASE("one burst of motion is one swipe and the return stroke is ignored", "[gesture]")
 {
     for (bool vertical : {false, true}) {
         for (int direction : {-1, 1}) {
@@ -42,30 +42,72 @@ TEST_CASE("swipes repeat without release and ignore the same stroke and the retu
             TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.2F), 1500)));
             TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.35F), 1600)));
             TEST_ASSERT_EQUAL_INT(int(expected), int(tracker.update(point(0.5F), 1700)));
-            tracker.reset(1800);  // The resulting page change keeps swipes armed.
-            // The rest of the same stroke falls inside the cooldown.
-            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.65F), 1800)));
-            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.8F), 1900)));
-            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.95F), 2000)));
-            // The hand returns through the view without leaving it.
-            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.8F), 2300)));
-            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.6F), 2400)));
-            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.4F), 2500)));
-            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.4F), 2600)));
-            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.55F), 2700)));
-            TEST_ASSERT_EQUAL_INT(int(expected), int(tracker.update(point(0.7F), 2800)));
+            tracker.reset(true);  // The accepted swipe's page change keeps swipes armed.
+            // The hand comes to rest in view; the stroke back is the hand returning.
+            for (unsigned t = 1800; t < 2400; t += 100)
+                TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.65F), t)));
+            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.5F), 2400)));
+            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.35F), 2500)));
+            // The same direction repeats without the hand leaving.
+            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.5F), 2600)));
+            TEST_ASSERT_EQUAL_INT(int(expected), int(tracker.update(point(0.65F), 2700)));
+            tracker.reset(true);
+            // Motion that continues without a rest belongs to the same command.
+            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.8F), 2800)));
+            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.5F), 2900)));
+            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.2F), 3000)));
+            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.5F), 3100)));
+            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.8F), 3200)));
             // A stationary hand issues nothing; the reverse direction works once the return window ends.
-            for (unsigned t = 2900; t < 4500; t += 100)
-                TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.7F), t)));
-            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.55F), 4500)));
-            TEST_ASSERT_EQUAL_INT(int(reverse), int(tracker.update(point(0.4F), 4600)));
+            for (unsigned t = 3300; t < 4500; t += 100)
+                TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.8F), t)));
+            TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.65F), 4500)));
+            TEST_ASSERT_EQUAL_INT(int(reverse), int(tracker.update(point(0.5F), 4600)));
             // A context change unrelated to a swipe requires the view to clear again.
-            tracker.reset(6000);
+            tracker.reset();
             tracker.update(point(0.2F), 6100);
             tracker.update(point(0.35F), 6200);
             TEST_ASSERT_EQUAL_INT(none, int(tracker.update(point(0.5F), 6300)));
         }
     }
+}
+
+TEST_CASE("a wave too small for a swipe issues one command until the hand rests", "[gesture]")
+{
+    const auto none = int(GestureAction::None);
+    GestureTracker tracker;
+    arm(tracker);
+    // Frames arrive about every 125 ms; each leg covers 15% of the width.
+    TEST_ASSERT_EQUAL_INT(none, int(tracker.update(hand(0.42F), 1500)));
+    TEST_ASSERT_EQUAL_INT(none, int(tracker.update(hand(0.57F), 1625)));
+    TEST_ASSERT_EQUAL_INT(none, int(tracker.update(hand(0.42F), 1750)));
+    TEST_ASSERT_EQUAL_INT(int(GestureAction::Wave), int(tracker.update(hand(0.57F), 1875)));
+    tracker.reset(true);
+    for (unsigned i = 0; i < 6; ++i)
+        TEST_ASSERT_EQUAL_INT(none, int(tracker.update(hand(i % 2 ? 0.57F : 0.42F), 2000 + i * 125)));
+    for (unsigned t = 2750; t <= 3250; t += 125)
+        TEST_ASSERT_EQUAL_INT(none, int(tracker.update(hand(0.57F), t)));
+    TEST_ASSERT_EQUAL_INT(none, int(tracker.update(hand(0.42F), 3375)));
+    TEST_ASSERT_EQUAL_INT(none, int(tracker.update(hand(0.57F), 3500)));
+    TEST_ASSERT_EQUAL_INT(int(GestureAction::Wave), int(tracker.update(hand(0.42F), 3625)));
+}
+
+TEST_CASE("a resting hand starts its stroke when it begins to move", "[gesture]")
+{
+    GestureTracker tracker;
+    arm(tracker);
+    for (unsigned t = 1500; t <= 2300; t += 100)
+        TEST_ASSERT_EQUAL_INT(int(GestureAction::None), int(tracker.update(hand(0.2F), t)));
+    tracker.update(hand(0.35F), 2400);
+    TEST_ASSERT_EQUAL_INT(int(GestureAction::SwipeRight), int(tracker.update(hand(0.5F), 2500)));
+}
+
+TEST_CASE("pose classification waits for a hand that stays in place", "[gesture]")
+{
+    TEST_ASSERT_TRUE(hand_is_steady(hand(0.5F), hand(0.53F, 0.52F)));
+    TEST_ASSERT_FALSE(hand_is_steady(hand(0.5F), hand(0.6F)));
+    TEST_ASSERT_FALSE(hand_is_steady(hand(0.5F), hand(0.5F, 0.6F)));
+    TEST_ASSERT_FALSE(hand_is_steady({}, hand(0.5F)));
 }
 
 TEST_CASE("OK requires a stable hold and release after context invalidation", "[gesture]")
@@ -76,9 +118,34 @@ TEST_CASE("OK requires a stable hold and release after context invalidation", "[
         TEST_ASSERT_EQUAL_INT(int(GestureAction::None), int(tracker.update(hand(0.5F, 0.5F, 0.95F), t)));
     TEST_ASSERT_EQUAL_INT(80, tracker.hold_progress());
     TEST_ASSERT_EQUAL_INT(int(GestureAction::EnterClock), int(tracker.update(hand(0.5F, 0.5F, 0.95F), 2000)));
-    tracker.reset(2000);
+    tracker.reset(true);
     for (unsigned t = 2100; t <= 3000; t += 100)
         TEST_ASSERT_EQUAL_INT(int(GestureAction::None), int(tracker.update(hand(0.5F, 0.5F, 0.95F), t)));
+    // The hand that made the pose never left: its stroke is ignored, its wave is not.
+    TEST_ASSERT_EQUAL_INT(int(GestureAction::None), int(tracker.update(hand(0.65F), 3100)));
+    TEST_ASSERT_EQUAL_INT(int(GestureAction::None), int(tracker.update(hand(0.8F), 3200)));
+    TEST_ASSERT_EQUAL_INT(int(GestureAction::None), int(tracker.update(hand(0.65F), 3300)));
+    TEST_ASSERT_EQUAL_INT(int(GestureAction::Wave), int(tracker.update(hand(0.8F), 3400)));
+}
+
+TEST_CASE("external input during swipe cooldown requires release before another gesture", "[gesture]")
+{
+    GestureTracker tracker;
+    arm(tracker);
+    tracker.update(hand(0.2F), 1500);
+    tracker.update(hand(0.35F), 1600);
+    TEST_ASSERT_EQUAL_INT(int(GestureAction::SwipeRight), int(tracker.update(hand(0.5F), 1700)));
+    tracker.reset(true);
+    tracker.update(hand(0.65F), 1800);
+    tracker.reset();
+    tracker.update(hand(0.5F), 2200);
+    tracker.update(hand(0.65F), 2300);
+    TEST_ASSERT_EQUAL_INT(int(GestureAction::None), int(tracker.update(hand(0.8F), 2400)));
+    tracker.update({}, 2500);
+    tracker.update({}, 2800);
+    tracker.update(hand(0.2F), 2900);
+    tracker.update(hand(0.35F), 3000);
+    TEST_ASSERT_EQUAL_INT(int(GestureAction::SwipeRight), int(tracker.update(hand(0.5F), 3100)));
 }
 
 TEST_CASE("single dropouts keep a swipe and an OK hold alive", "[gesture]")
@@ -154,16 +221,18 @@ TEST_CASE("wake consumes the first swipe and protected states reject all command
 {
     TEST_ASSERT_EQUAL_INT(int(GestureEffect::Wake), int(route_gesture(GestureAction::SwipeLeft, true, true)));
     TEST_ASSERT_EQUAL_INT(int(GestureEffect::Wake), int(route_gesture(GestureAction::SwipeRight, true, true)));
-    TEST_ASSERT_EQUAL_INT(int(GestureEffect::Previous), int(route_gesture(GestureAction::SwipeLeft, true, false)));
+    TEST_ASSERT_EQUAL_INT(int(GestureEffect::Next), int(route_gesture(GestureAction::SwipeLeft, true, false)));
     TEST_ASSERT_EQUAL_INT(int(GestureEffect::Next), int(route_gesture(GestureAction::SwipeRight, true, false)));
     TEST_ASSERT_EQUAL_INT(int(GestureEffect::Wake), int(route_gesture(GestureAction::SwipeUp, true, true)));
     TEST_ASSERT_EQUAL_INT(int(GestureEffect::Wake), int(route_gesture(GestureAction::SwipeDown, true, true)));
-    TEST_ASSERT_EQUAL_INT(int(GestureEffect::Previous), int(route_gesture(GestureAction::SwipeUp, true, false)));
+    TEST_ASSERT_EQUAL_INT(int(GestureEffect::Next), int(route_gesture(GestureAction::SwipeUp, true, false)));
     TEST_ASSERT_EQUAL_INT(int(GestureEffect::Next), int(route_gesture(GestureAction::SwipeDown, true, false)));
+    TEST_ASSERT_EQUAL_INT(int(GestureEffect::Wake), int(route_gesture(GestureAction::Wave, true, true)));
+    TEST_ASSERT_EQUAL_INT(int(GestureEffect::Next), int(route_gesture(GestureAction::Wave, true, false)));
     TEST_ASSERT_EQUAL_INT(int(GestureEffect::Clock), int(route_gesture(GestureAction::EnterClock, true, false)));
     TEST_ASSERT_EQUAL_INT(int(GestureEffect::None), int(route_gesture(GestureAction::EnterClock, true, true)));
     for (auto action : {GestureAction::SwipeLeft, GestureAction::SwipeRight, GestureAction::SwipeUp,
-                        GestureAction::SwipeDown, GestureAction::EnterClock})
+                        GestureAction::SwipeDown, GestureAction::Wave, GestureAction::EnterClock})
         TEST_ASSERT_EQUAL_INT(int(GestureEffect::None), int(route_gesture(action, false, false)));
 }
 
