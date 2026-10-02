@@ -152,7 +152,7 @@ lv_display_t* start_display(
         ESP_LOGE(TAG, "touch initialization failed");
         return nullptr;
     }
-    // The panel comes up at zero brightness; begin() raises it after the first frame.
+    // The panel comes up at zero brightness; the first completed refresh starts the fade-in.
     return display;
 }
 

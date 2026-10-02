@@ -528,10 +528,10 @@ SOFTWARE.
 
 ## `espressif/dhara`
 
-- Version: `1.0.0`
-- Source: https://components.espressif.com/components/espressif/dhara/versions/1.0.0
+- Version: `1.1.0`
+- Source: https://components.espressif.com/components/espressif/dhara/versions/1.1.0
 - SPDX conclusion from distributed license: `ISC`
-- Copyright/notice: https://components.espressif.com/components/espressif/dhara/versions/1.0.0/license
+- Copyright/notice: https://components.espressif.com/components/espressif/dhara/versions/1.1.0/license
 
 ## `espressif/esp_lcd_touch_cst9220`
 

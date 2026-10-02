@@ -22,6 +22,8 @@ namespace usage_panel::mosaico {
 static_assert(CONFIG_MOSAICO_CAMERA_ROTATION % 90 == 0, "Camera rotation must be a multiple of 90 degrees");
 #endif
 namespace {
+// context_ layout: bits 0..2 hold the flags below, bits 3..4 the display rotation,
+// bits 5..6 the page, bit 7 marks an accepted gesture and bits 8..31 count generations.
 constexpr uint32_t kEnabled = 1;
 constexpr uint32_t kAllowed = 2;
 constexpr uint32_t kAsleep = 4;
