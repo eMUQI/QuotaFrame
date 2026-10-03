@@ -37,11 +37,13 @@ USB 复位时串口会重新枚举，必要时重新选择端口。连接日志�
 
 该路径不使用左槽 CameraBoard 占用的 USB Serial/JTAG 引脚。大镜像的分段写入要求
 仍见[有线烧录说明](../../../docs/validation/mosaico-gestures.md#有线烧录)。
-2026-10-03 已在 macOS 使用 esptool 5.3.1 的 USBJTAGSerialReset 序列验证：
+2026-10-03 的实机验证使用包含 BLE OTA 改动与 CDC 功能的组合固件，
+在 macOS 使用 esptool 5.3.1 的 USBJTAGSerialReset 序列验证：
 应用 CDC → ROM 下载模式 → 看门狗复位 → 应用 CDC，全程无需按键。
 应用 CDC 与 ROM 使用不同的 USB 标识，端口会变化；此项验证不代表单条
 `idf.py flash` 命令已自动处理端口切换。摄像头运行时已连续读取 CDC 日志
-15 秒，未发生断连；长时间并行运行的稳定性仍待验证。
+15 秒，未发生断连；长时间并行运行的稳定性仍待验证。独立 CDC 分支已通过
+ESP-IDF v6.1 构建，尚未单独烧录验证。
 
 ## 当前实现
 

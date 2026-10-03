@@ -50,9 +50,10 @@ or the esp-claw video wrapper. Preserve the copyright notice in the adapted file
 
 The camera uses its onboard oscillator and the existing BSP subboard I2C bus.
 GPIO14 is D4 during capture; GPIO33 is D2 and cannot concurrently serve USB
-Serial/JTAG. GPIO34 is the active-low illuminator and remains high. UART logging
-is retained. Start/stop and frame ownership belong to the vision worker; the
-application task exchanges context and bounded events only.
+Serial/JTAG. GPIO34 is the active-low illuminator and remains high. Early boot
+logs use UART0. After USB CDC initialization, application logs use the independent
+Type-C USB OTG port. Start/stop and frame ownership belong to the vision worker;
+the application task exchanges context and bounded events only.
 
 Start-up timing follows `boards/ESP32_S31_MOSAICO/camera.c` in
 [esp-vision](https://github.com/espressif/esp-vision) and `mosaico_module_camera`
