@@ -38,14 +38,54 @@ eim run "idf.py -C firmware/targets/esp_mosaico build" v6.1
 
 ## 有线烧录
 
-按住 BOOT 再开机进入 ROM 下载模式。整段擦写大应用可能断连，应用按 1 MiB 分段烧录，不直接使用 `idf.py flash` 或未拆分的 `@flash_args`。
+首次安装、应用无法启动或 USB CDC 初始化失败时，按住 BOOT 再开机进入 ROM 下载模式。已安装支持 CDC 自动下载的固件且应用正常运行时，可通过 Type-C 触发下载，无需按键。
 
-地址从目标应用槽起点逐段递增。使用 ESP-IDF v6.1 环境中的 esptool，参数为 `--chip esp32s31 --no-stub`、460800 波特率、DIO/80 MHz/16 MB，并指定 `--after no-reset`。烧录前核对分段拼接内容与构建应用一致，烧录后确认每段设备哈希校验成功，再通过 POWER 关机重启。
+先关闭占用串口的监视器，再列出端口：
+
+```sh
+eim run "python -m serial.tools.list_ports -v" v6.1
+```
+
+确认产品为 `QuotaFrame Mosaico`、USB VID:PID 为 `303A:1001` 的应用端口。以下 macOS/Linux shell 示例使用 esptool 的复位序列；该流程已在 macOS 验证。将 `APP_PORT` 替换为刚确认的端口：
+
+```sh
+cat > /tmp/mosaico-enter-download.py <<'PYTHON'
+import sys
+import serial
+from esptool.reset import USBJTAGSerialReset
+
+port = serial.Serial(port=None, baudrate=115200, timeout=0.2)
+port.dtr = True
+port.rts = True
+port.port = sys.argv[1]
+port.open()
+try:
+    USBJTAGSerialReset(port).reset()
+except (OSError, serial.SerialException) as error:
+    print(f"CDC reset interrupted: {error}; verify the ROM port below.")
+finally:
+    port.close()
+PYTHON
+eim run "python /tmp/mosaico-enter-download.py APP_PORT" v6.1
+eim run "python -m serial.tools.list_ports -v" v6.1
+```
+
+等待设备重新枚举，确认 `303A:0020` 的 ESP32-S31 ROM 端口后，将它用于后续烧录。端口名称可能变化，不能继续沿用应用端口；若未出现 ROM 端口，应停止烧录并检查连接，必要时使用 BOOT 恢复。复位期间的串口断开提示本身不代表已进入下载模式。
+
+整段擦写大应用可能断连，应用按 1 MiB 分段烧录，不直接使用 `idf.py flash` 或未拆分的 `@flash_args`。
+
+地址从目标应用槽起点逐段递增。使用 ESP-IDF v6.1 环境中的 esptool，参数为 `--chip esp32s31 --no-stub`、460800 波特率、DIO/80 MHz/16 MB，并指定 `--after no-reset`。烧录前核对分段拼接内容与构建应用一致，烧录后确认每段设备哈希校验成功，再执行以下命令读取芯片标识并通过看门狗复位返回应用。将 `ROM_PORT` 替换为重新枚举后的 ROM 端口：
+
+```sh
+eim run "python -m esptool --chip esp32s31 --port ROM_PORT --no-stub --before no-reset --after hard-reset chip-id" v6.1
+```
+
+应用 CDC 会再次枚举，查看日志前重新确认端口。软件复位失败时，可通过 POWER 关机重启。
 
 仅更新当前应用时，不写入 NVS、分区表或初始 OTA 元数据。完整安装使用构建产物匹配的 bootloader、分区表及初始化数据，应用仍分段写入。整片擦除或写入包含填充区域的合并镜像会影响已保存的配对和设置。
 
 ## 维护入口
 
-应用日志从 UART0 输出：右侧排针 H1 的 15 脚 TX0 / GPIO58，或底板背面 TX 调试焊盘，115200 波特率。Type-C 口使用 USB OTG 下载，摄像头占用的 USB Serial/JTAG 引脚位于左侧排针。日志包含手部坐标、置信度、动作和运行耗时，不包含图像。
+应用启动 USB CDC 后，日志通过 Type-C USB OTG 串口输出；连接监视器时使用 `monitor --no-reset` 可避免重启。启动早期的 UART0 输出可从右侧排针 H1 的 15 脚 TX0 / GPIO58，或底板背面 TX 调试焊盘读取，波特率为 115200。摄像头占用的 USB Serial/JTAG 引脚位于左侧排针，与 Type-C USB OTG 独立。日志包含手部坐标、置信度、动作和运行耗时，不包含图像。
 
 代码结构、识别参数见[手势设计](../design/mosaico-gesture-input.md)；固定依赖、模型摘要和引脚所有权见[摄像头依赖说明](../../firmware/targets/esp_mosaico/CAMERA_UPSTREAM.md)。

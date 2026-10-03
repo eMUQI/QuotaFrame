@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 set(EXTRA_COMPONENT_DIRS
     "${CMAKE_CURRENT_LIST_DIR}/../../components/usage_json"
     "${CMAKE_CURRENT_LIST_DIR}/../../components/esp-mosaico-bsp"
+    "${CMAKE_CURRENT_LIST_DIR}/../../components/usb_hs_console"
     "${CMAKE_CURRENT_LIST_DIR}/../../components/usage_core"
     "${CMAKE_CURRENT_LIST_DIR}/../../components/usage_fonts"
     "${CMAKE_CURRENT_LIST_DIR}/../../components/usage_panel_state"
