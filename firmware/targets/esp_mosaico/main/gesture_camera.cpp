@@ -57,7 +57,7 @@ bool GestureCamera::start()
     failure_code_ = 0;
     if (pins_claimed_ || fd_ >= 0) return fail("start while resources are held");
     if (const esp_err_t error = bsp_subboard_init(); error != ESP_OK) return fail("subboard init", error);
-    // D2 shares GPIO33 with Serial/JTAG. The UART console remains available.
+    // D2 shares GPIO33 with Serial/JTAG; the Type-C USB OTG console uses separate pins.
     restore_usb_pad_ = usb_serial_jtag_ll_phy_is_pad_enabled();
     restore_usb_clock_ = usb_serial_jtag_ll_module_is_enabled();
     restore_usb_interrupts_ = restore_usb_clock_ ? usb_serial_jtag_ll_get_intr_ena_status() : 0;

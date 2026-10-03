@@ -27,6 +27,22 @@ eim run "idf.py -C firmware/targets/esp_mosaico build" v6.1
 
 构建产物为 `build/mosaico_usage_panel.bin`，两个 app 分区均为 7 MiB，Folder Push 总传输限额为 7 MiB + 512 字节，额外空间用于 manifest。
 
+## Type-C CDC 自动下载
+
+目标默认启用官方出厂固件的 [USB HS Console 组件](../../components/usb_hs_console/UPSTREAM.md)，
+通过 Type-C USB OTG 提供 CDC 串口日志和 esptool 自动进入 ROM 下载模式的功能。
+首次安装仍需按住 BOOT 再开机；安装后，应用正常运行时可由电脑触发下载模式。
+USB 复位时串口会重新枚举，必要时重新选择端口。连接日志监视器但不希望重启时使用
+`monitor --no-reset`。应用无法启动或 USB 初始化失败时，仍使用 BOOT 手动恢复。
+
+该路径不使用左槽 CameraBoard 占用的 USB Serial/JTAG 引脚。大镜像的分段写入要求
+仍见[有线烧录说明](../../../docs/validation/mosaico-gestures.md#有线烧录)。
+2026-10-03 已在 macOS 使用 esptool 5.3.1 的 USBJTAGSerialReset 序列验证：
+应用 CDC → ROM 下载模式 → 看门狗复位 → 应用 CDC，全程无需按键。
+应用 CDC 与 ROM 使用不同的 USB 标识，端口会变化；此项验证不代表单条
+`idf.py flash` 命令已自动处理端口切换。摄像头运行时已连续读取 CDC 日志
+15 秒，未发生断连；长时间并行运行的稳定性仍待验证。
+
 ## 当前实现
 
 界面、用量数据路径、BLE 与 OTA 都已接入，UI 从 ESP32-S3-Touch-AMOLED-2.16 移植而来（同为 480×480 CO5300 + CST9217）：

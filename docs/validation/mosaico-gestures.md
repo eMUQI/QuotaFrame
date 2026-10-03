@@ -46,6 +46,6 @@ eim run "idf.py -C firmware/targets/esp_mosaico build" v6.1
 
 ## 维护入口
 
-应用日志从 UART0 输出：右侧排针 H1 的 15 脚 TX0 / GPIO58，或底板背面 TX 调试焊盘，115200 波特率。Type-C 口使用 USB OTG 下载，摄像头占用的 USB Serial/JTAG 引脚位于左侧排针。日志包含手部坐标、置信度、动作和运行耗时，不包含图像。
+应用启动 USB CDC 后，日志通过 Type-C USB OTG 串口输出；连接监视器时使用 `monitor --no-reset` 可避免重启。启动早期的 UART0 输出可从右侧排针 H1 的 15 脚 TX0 / GPIO58，或底板背面 TX 调试焊盘读取，波特率为 115200。摄像头占用的 USB Serial/JTAG 引脚位于左侧排针，与 Type-C USB OTG 独立。日志包含手部坐标、置信度、动作和运行耗时，不包含图像。
 
 代码结构、识别参数见[手势设计](../design/mosaico-gesture-input.md)；固定依赖、模型摘要和引脚所有权见[摄像头依赖说明](../../firmware/targets/esp_mosaico/CAMERA_UPSTREAM.md)。

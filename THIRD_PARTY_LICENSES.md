@@ -18,6 +18,14 @@ For ESP Component Registry entries, `Registry license` is the API value for the 
 - SPDX: `Apache-2.0`
 - Copyright/notice: https://github.com/esp-mosaico/esp-mosaico-bsp/blob/392860b1d1a123c3377947074b2af1f600e86c5d/LICENSE
 
+## `usb_hs_console`
+
+- Version: `9ea326da1f2a017ba81f1d391862f977b355a03e`
+- Source: https://github.com/esp-mosaico/esp-mosaico-claw/tree/9ea326da1f2a017ba81f1d391862f977b355a03e/boards/esp_mosaico/components/usb_hs_console
+- SPDX: `Apache-2.0`
+- Copyright/notice: [LICENSE](firmware/components/usb_hs_console/LICENSE)
+- Local integration: [UPSTREAM.md](firmware/components/usb_hs_console/UPSTREAM.md)
+
 ## `esp_desktop_buddy`
 
 - Version: `b6bac05db208717676e70180e5269d79f32b2d68`
@@ -166,6 +174,20 @@ For ESP Component Registry entries, `Registry license` is the API value for the 
 - Copyright/notice: https://components-file.espressif.com/components/espressif/zlib/1.3.2/license.txt
 
 - ESP-Mosaico version: `1.3.2~1`; source: https://components.espressif.com/components/espressif/zlib/versions/1.3.2~1; copyright/notice: https://components.espressif.com/components/espressif/zlib/versions/1.3.2~1/license
+
+## `espressif/esp_tinyusb`
+
+- Version: `2.2.1`
+- Source: https://components.espressif.com/components/espressif/esp_tinyusb/versions/2.2.1
+- SPDX: `Apache-2.0`
+- Copyright/notice: https://github.com/espressif/esp-usb/blob/8e779566ef71d43928cbf7e125e8eb54bab3f542/device/esp_tinyusb/LICENSE
+
+## `espressif/tinyusb`
+
+- Version: `0.21.0~1`
+- Source: https://components.espressif.com/components/espressif/tinyusb/versions/0.21.0~1
+- SPDX: `MIT`
+- Copyright/notice: https://github.com/espressif/tinyusb/blob/7049c58a0e895acc92c6407574b05b5536eddfc8/LICENSE
 
 ## `espressif/usb`
 
