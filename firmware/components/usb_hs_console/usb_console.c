@@ -208,7 +208,7 @@ esp_err_t bsp_usb_console_init(void)
         return ret;
     }
 
-    /* Keep application logs observable even when the host opens CDC after app_main starts. */
+    /* Disable stdio buffering so subsequent logs are forwarded without waiting for a full buffer. */
     setvbuf(stdout, NULL, _IONBF, 0);
     setvbuf(stderr, NULL, _IONBF, 0);
 

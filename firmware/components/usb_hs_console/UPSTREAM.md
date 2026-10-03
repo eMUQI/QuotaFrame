@@ -15,7 +15,8 @@ it does not expose hardware JTAG. Only the ESP-Mosaico target includes it.
 - Require ESP-IDF >=6.1 and constrain esp_tinyusb to the compatible 2.x API;
   the target lockfile records the resolved version.
 - Include the ROM print declaration and correct obsolete Kconfig names in the
-  public header.
+  public header; document initialization errors, serialized access and port
+  re-enumeration. Clarify the stdio buffering comment.
 - Continue application startup with a warning if USB console initialization
   fails, preserving the display and BLE recovery path.
 
