@@ -23,7 +23,7 @@ config ESP_DESKTOP_BUDDY_FOLDER_PUSH_MAX_DECODED_CHUNK
 
 config ESP_DESKTOP_BUDDY_FOLDER_PUSH_MAX_TRANSFER_BYTES
     int "Max transfer size bytes"
-    range 0 4194816
+    range 0 7340544
     default 4194816
     help
         Maximum total decoded payload bytes accepted by a single `char_begin`

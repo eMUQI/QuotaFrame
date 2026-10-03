@@ -28,5 +28,17 @@ and two-pixel vertical boundaries, clipped to the display dimensions. The CO5300
 RASET command requires an even start row and an even row count (datasheet page
 161); LVGL renders the expanded rows so the pixel buffer matches the transfer window.
 
+The CO5300 initialization sequence sets brightness register 0x51 to zero instead of
+0xFF and omits the Display On command with its 600 ms delay. `bsp_display_new()`
+issues Display On after the orientation is set. The panel therefore stays dark until
+the application raises the brightness, which it must do after the first frame has been
+written; upstream shows undefined frame memory at full brightness during that delay.
+
+`bsp_battery_init()` does not seal the BQ27220 again after `bq27220_create()`. The
+driver seals and verifies on every path that returns a handle, and each seal waits
+`CONFIG_BQ27220_SEAL_SETTLE_MS` unconditionally, so the upstream call only added
+that wait. The driver default is 2000 ms; this target selects 200 ms in
+`sdkconfig.defaults` and retains the sealed-state check after the wait.
+
 When re-syncing, preserve these integration changes as well as the manifest
 constraint and review the repository diff for other board-specific changes.

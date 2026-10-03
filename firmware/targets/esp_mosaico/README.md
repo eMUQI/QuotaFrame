@@ -25,7 +25,7 @@ eim run "idf.py -C firmware/targets/esp_mosaico --preview set-target esp32s31" v
 eim run "idf.py -C firmware/targets/esp_mosaico build" v6.1
 ```
 
-构建产物为 `build/mosaico_usage_panel.bin`，两个 app 分区均为 4 MiB，Folder Push 总传输限额为 4 MiB + 512 字节，额外空间用于 manifest。
+构建产物为 `build/mosaico_usage_panel.bin`，两个 app 分区均为 7 MiB，Folder Push 总传输限额为 7 MiB + 512 字节，额外空间用于 manifest。
 
 ## 当前实现
 
@@ -35,6 +35,19 @@ eim run "idf.py -C firmware/targets/esp_mosaico build" v6.1
 - 显示、触控、旋转、亮度和 LVGL 锁全部交给乐鑫 BSP：`bsp_display_start_with_config()` 一次性完成 esp_lvgl_adapter 初始化、CO5300 注册、CST9217 注册与区域对齐，`bsp_display_set_rotation()` 同时旋转面板和触控；
 - `usage_core` / `usage_protocol` / `usage_ble` / `usage_ota` 与其他目标共用，BLE 广播前缀 `QF-Mosaico-`，状态身份 `ESP-Mosaico`，型号标识 `esp_mosaico`；
 - 触控标签与左右滑动切页之外，板载 AI 键单击可唤醒并切换到下一页。
+
+### 实验性本地手势
+
+左槽 CameraBoard（OV3640 或 SC101IOT）支持本地手势，默认关闭。在设置中打开 `CAMERA` 并点击 `SAVE` 后启用，关闭并保存即可停止采集。图像只在设备内处理，不上传、不保存；识别效果受光线、距离和手部是否完整入镜影响。
+
+- 用量页：向任意方向挥手或左右招手切到下一页，按总览 → Codex → Claude 循环。
+- 进入时钟：👌 OK 或 👍 点赞稳定保持约半秒。
+- 唤醒：在时钟页面挥手或左右招手，恢复原页面。
+- 预览：点击顶栏摄像头标识显示或隐藏画面与手部定位框；默认隐藏，重启后恢复隐藏。关闭预览不影响识别。
+
+一段连续挥动只执行一次，手停稳后再做下一次动作。设置、配对和 OTA 期间暂停手势输入，隐藏预览。触摸和 AI 键继续可用；时钟中摄像头仍工作，开启手势会增加耗电。
+
+亮度、自动时钟超时和相机开关作为一条 NVS 记录保存；记录缺失或无效时关闭相机，亮度和自动时钟超时沿用旧版固件保存的值，没有则使用默认值。模型随代码内嵌应用，在当前双槽分区中共同更新。使用、安装和故障处理见[手势指南](../../../docs/validation/mosaico-gestures.md)，实现结构见[手势设计](../../../docs/design/mosaico-gesture-input.md)，固定版本、参考仓库和模型摘要见 [CAMERA_UPSTREAM.md](CAMERA_UPSTREAM.md)。
 
 ### 显示刷新
 
@@ -46,7 +59,7 @@ TE 信号缺失时最多等待 25 ms 后继续刷新，并在超时、恢复状�
 启动日志应包含 `partial refresh: PSRAM single buffer`。硬件验收应比较导航条、
 用量条动画和整页切换的帧间隔，并检查四个旋转方向、休眠唤醒后的撕裂与触控。
 40 MHz 四线 QSPI 传输整屏 RGB565 的理论下限约为 23 ms；整页更新仍可能跨越
-屏幕扫描周期，按帧 TE 同步不等于所有更新均无撕裂。此刷新路径尚待实机验收。
+屏幕扫描周期，按帧 TE 同步不等于所有更新均无撕裂。
 
 ### 与 AMOLED 目标的板级差异
 
@@ -66,7 +79,7 @@ TE 信号缺失时最多等待 25 ms 后继续刷新，并在超时、恢复状�
 eim run "idf.py -C firmware/targets/esp_mosaico/test_apps/logic build" v6.1
 ```
 
-只覆盖本目标独有的 `local_clock` 和 `orientation`。共享面板行为由 `firmware/test_apps/panel_state` 覆盖。没有实机时该命令只证明测试镜像编译通过。
+覆盖本目标独有的 `local_clock`、`orientation`、手势轨迹/动作路由、图像坐标转换和设置持久化。共享面板行为由 `firmware/test_apps/panel_state` 覆盖。没有实机时该命令只证明测试镜像编译通过。
 
 ## 后续步骤
 

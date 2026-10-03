@@ -86,14 +86,8 @@ static esp_err_t battery_attach(void)
         .cedv = &s_default_cedv,
     };
     s_gauge = bq27220_create(&config);
+    /* bq27220_create() returns a handle only after sealing the gauge and confirming it. */
     ESP_RETURN_ON_FALSE(s_gauge, ESP_FAIL, TAG, "attach BQ27220 0x%02X failed", BSP_BATTERY_I2C_ADDR);
-    const esp_err_t seal_ret = bq27220_seal(s_gauge);
-    if (seal_ret != ESP_OK) {
-        ESP_LOGE(TAG, "seal BQ27220 after initialization failed: %s", esp_err_to_name(seal_ret));
-        bq27220_delete(s_gauge);
-        s_gauge = NULL;
-        return seal_ret;
-    }
 
     const uint16_t voltage_mv = bq27220_get_voltage(s_gauge);
     ESP_LOGI(TAG, "BQ27220 online: address=0x%02X SDA=%d SCL=%d %u mV", BSP_BATTERY_I2C_ADDR,

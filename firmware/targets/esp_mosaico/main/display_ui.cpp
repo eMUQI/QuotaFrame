@@ -4,6 +4,7 @@
 #include <initializer_list>
 
 #include "bsp/esp_mosaico.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "usage_fonts/usage_fonts.h"
 #include "esp_timer.h"
@@ -151,13 +152,7 @@ lv_display_t* start_display(
         ESP_LOGE(TAG, "touch initialization failed");
         return nullptr;
     }
-    const esp_err_t error = bsp_display_brightness_set(
-        CONFIG_MOSAICO_USAGE_PANEL_DISPLAY_BRIGHTNESS_PERCENT);
-    if (error != ESP_OK) {
-        ESP_LOGE(TAG, "display brightness setting failed: %s",
-                 esp_err_to_name(error));
-        return nullptr;
-    }
+    // The panel comes up at zero brightness; the first completed refresh starts the fade-in.
     return display;
 }
 
@@ -245,6 +240,19 @@ void style_panel(lv_obj_t* panel, uint32_t background = COLOR_PANEL,
     lv_obj_set_style_radius(panel, radius, 0);
     lv_obj_set_style_pad_all(panel, 0, 0);
     lv_obj_remove_flag(panel, LV_OBJ_FLAG_SCROLLABLE);
+}
+
+/** Creates an unstyled, non-interactive primitive for icons drawn from shapes. */
+lv_obj_t* make_shape(lv_obj_t* parent, int x, int y, int width, int height, int radius)
+{
+    lv_obj_t* shape = lv_obj_create(parent);
+    lv_obj_remove_style_all(shape);
+    lv_obj_set_pos(shape, x, y);
+    lv_obj_set_size(shape, width, height);
+    lv_obj_set_style_radius(shape, radius, 0);
+    lv_obj_remove_flag(shape, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_remove_flag(shape, LV_OBJ_FLAG_SCROLLABLE);
+    return shape;
 }
 
 lv_obj_t* make_label(lv_obj_t* parent, const char* text, int x, int y,
@@ -357,6 +365,8 @@ bool DisplayUi::begin(ScreenRotation initial_rotation)
     build_provider_page(screen, Provider::Codex);
     build_provider_page(screen, Provider::Claude);
     build_navigation(screen);
+    // Below the screensaver and overlays, which raise themselves when shown.
+    build_camera_preview(screen);
     build_screensaver(screen);
     build_settings(screen);
     build_pairing_overlay(screen);
@@ -364,6 +374,8 @@ bool DisplayUi::begin(ScreenRotation initial_rotation)
     show_page(Page::Overview, /*animate=*/false);
     lv_display_add_event_cb(
         display_, transition_refresh_ready, LV_EVENT_REFR_READY, this);
+    // Frame memory is undefined until the first refresh, which then fades the panel in.
+    transition_refresh_pending_ = true;
 
     return true;
 }
@@ -453,6 +465,9 @@ void DisplayUi::build_header(lv_obj_t* screen)
         battery_segments_[i] = lv_obj_create(body);
         lv_obj_set_pos(battery_segments_[i], 2 + i * 6, 2);
         lv_obj_set_size(battery_segments_[i], 5, 8);
+        // The first frame precedes the first battery reading and shows it as unavailable.
+        lv_obj_set_style_bg_color(battery_segments_[i], lv_color_hex(COLOR_BATTERY_OFF), 0);
+        lv_obj_set_style_bg_opa(battery_segments_[i], LV_OPA_COVER, 0);
         lv_obj_set_style_border_width(battery_segments_[i], 0, 0);
         lv_obj_set_style_radius(battery_segments_[i], 1, 0);
         lv_obj_set_style_pad_all(battery_segments_[i], 0, 0);
@@ -467,6 +482,38 @@ void DisplayUi::build_header(lv_obj_t* screen)
     lv_obj_set_style_radius(terminal, 1, 0);
     lv_obj_set_style_pad_all(terminal, 0, 0);
     lv_obj_remove_flag(terminal, LV_OBJ_FLAG_SCROLLABLE);
+
+#if CONFIG_MOSAICO_GESTURE_INPUT
+    // Solid camera silhouette left of the connection status, vertically centred
+    // on its dot. The header fonts carry no camera glyph, so it is drawn from
+    // primitives: body and viewfinder in the state colour, a background-coloured
+    // lens ring and a state-coloured lens centre.
+    static const lv_point_precise_t kSlash[] = {{3, 2}, {23, 26}};
+    camera_indicator_ = make_shape(screen, 275, 13, 26, 28, 0);
+#if CONFIG_MOSAICO_CAMERA_PREVIEW
+    lv_obj_add_flag(camera_indicator_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_ext_click_area(camera_indicator_, 8);
+    lv_obj_add_event_cb(camera_indicator_, camera_preview_toggle_event, LV_EVENT_CLICKED, this);
+#endif
+    camera_indicator_parts_[0] = make_shape(camera_indicator_, 6, 3, 8, 4, 1);
+    camera_indicator_parts_[1] = make_shape(camera_indicator_, 0, 6, 26, 16, 4);
+    camera_indicator_lens_ = make_shape(camera_indicator_, 8, 9, 10, 10, 5);
+    camera_indicator_parts_[2] = make_shape(camera_indicator_, 11, 12, 4, 4, 2);
+    lv_obj_set_style_bg_color(camera_indicator_lens_, lv_color_hex(COLOR_BG), 0);
+    for (lv_obj_t* part : {camera_indicator_parts_[0], camera_indicator_parts_[1],
+                           camera_indicator_lens_, camera_indicator_parts_[2]})
+        lv_obj_set_style_bg_opa(part, LV_OPA_COVER, 0);
+    for (size_t i = 0; i < 2; ++i) {
+        lv_obj_t* slash = lv_line_create(camera_indicator_);
+        camera_indicator_slash_[i] = slash;
+        lv_line_set_points(slash, kSlash, 2);
+        lv_obj_set_style_line_width(slash, i == 0 ? 6 : 2, 0);
+        lv_obj_set_style_line_color(slash, lv_color_hex(i == 0 ? COLOR_BG : COLOR_RESET), 0);
+        lv_obj_set_style_line_rounded(slash, true, 0);
+        lv_obj_remove_flag(slash, LV_OBJ_FLAG_CLICKABLE);
+    }
+    lv_obj_add_flag(camera_indicator_, LV_OBJ_FLAG_HIDDEN);
+#endif
 
     lv_obj_t* divider = lv_obj_create(screen);
     lv_obj_set_pos(divider, MARGIN, HEADER_H);
@@ -769,20 +816,20 @@ void DisplayUi::build_settings(lv_obj_t* screen)
     lv_obj_set_style_bg_color(settings_panel_, lv_color_hex(COLOR_BG), 0);
     lv_obj_set_style_bg_opa(settings_panel_, LV_OPA_COVER, 0);
     lv_obj_remove_flag(settings_panel_, LV_OBJ_FLAG_SCROLLABLE);
-    auto* title = make_label(settings_panel_, "BRIGHTNESS", MARGIN, 24,
+    auto* title = make_label(settings_panel_, "BRIGHTNESS", MARGIN, 16,
                             &lv_font_montserrat_16, COLOR_MUTED);
     lv_obj_set_style_text_letter_space(title, 1, 0);
-    settings_brightness_ = make_label(settings_panel_, "", MARGIN, 58, &lv_font_montserrat_48);
+    settings_brightness_ = make_label(settings_panel_, "", MARGIN, 42, &lv_font_montserrat_48);
     lv_obj_t* divider = lv_obj_create(settings_panel_);
     lv_obj_remove_style_all(divider);
-    lv_obj_set_pos(divider, MARGIN, 158);
+    lv_obj_set_pos(divider, MARGIN, 128);
     lv_obj_set_size(divider, CARD_W, 1);
     lv_obj_set_style_bg_color(divider, lv_color_hex(COLOR_LINE), 0);
     lv_obj_set_style_bg_opa(divider, LV_OPA_COVER, 0);
-    title = make_label(settings_panel_, "AUTO CLOCK", MARGIN, 180,
+    title = make_label(settings_panel_, "AUTO CLOCK", MARGIN, 145,
                        &lv_font_montserrat_16, COLOR_MUTED);
     lv_obj_set_style_text_letter_space(title, 1, 0);
-    settings_timeout_ = make_label(settings_panel_, "AFTER IDLE / MIN", MARGIN, 207,
+    settings_timeout_ = make_label(settings_panel_, "AFTER IDLE / MIN", MARGIN, 170,
                                    &lv_font_montserrat_14, COLOR_MUTED);
     settings_hint_ = make_label(settings_panel_, "", MARGIN, 322,
                                &montserrat_semibold_13, COLOR_TEXT);
@@ -791,13 +838,13 @@ void DisplayUi::build_settings(lv_obj_t* screen)
         SettingsAction::TimeoutOff, SettingsAction::Timeout1, SettingsAction::Timeout5,
         SettingsAction::Timeout10, SettingsAction::Timeout30, SettingsAction::Save, SettingsAction::Cancel};
     const int x[] = {288, 376, 24, 112, 200, 288, 376, 250, MARGIN};
-    const int y[] = {58, 58, 244, 244, 244, 244, 244, 349, 349};
+    const int y[] = {38, 38, 200, 200, 200, 200, 200, 349, 349};
     for (size_t i = 0; i < 9; ++i) {
         lv_obj_t* button = lv_button_create(settings_panel_);
         settings_buttons_[i] = button;
         lv_obj_remove_style_all(button);
         lv_obj_set_pos(button, x[i], y[i]);
-        lv_obj_set_size(button, i < 7 ? 80 : 206, i < 2 ? 80 : 64);
+        lv_obj_set_size(button, i < 7 ? 80 : 206, i < 2 ? 72 : (i < 7 ? 52 : 64));
         style_panel(button);
         lv_obj_set_style_text_color(button, lv_color_hex(COLOR_MUTED), 0);
         lv_obj_set_style_text_font(button, i < 2 ? &lv_font_montserrat_30 : &lv_font_montserrat_20, 0);
@@ -816,10 +863,50 @@ void DisplayUi::build_settings(lv_obj_t* screen)
         lv_label_set_text(label, labels[i]);
         lv_obj_center(label);
     }
+#if CONFIG_MOSAICO_GESTURE_INPUT
+    divider = lv_obj_create(settings_panel_);
+    lv_obj_remove_style_all(divider);
+    lv_obj_set_pos(divider, MARGIN, 264);
+    lv_obj_set_size(divider, CARD_W, 1);
+    lv_obj_set_style_bg_color(divider, lv_color_hex(COLOR_LINE), 0);
+    lv_obj_set_style_bg_opa(divider, LV_OPA_COVER, 0);
+    title = make_label(settings_panel_, "CAMERA", MARGIN, 276, &lv_font_montserrat_16, COLOR_MUTED);
+    lv_obj_set_style_text_letter_space(title, 1, 0);
+    make_label(settings_panel_, "HAND GESTURES / ON DEVICE", MARGIN, 298,
+               &lv_font_montserrat_14, COLOR_MUTED);
+    // Not checkable: app_main owns the previewed state and draws it through
+    // apply_settings, so a failed preview can roll back like the other controls.
+    camera_switch_track_ = lv_button_create(settings_panel_);
+    lv_obj_remove_style_all(camera_switch_track_);
+    lv_obj_set_pos(camera_switch_track_, 376, 272);
+    lv_obj_set_size(camera_switch_track_, 80, 44);
+    style_panel(camera_switch_track_, COLOR_PANEL, 22);
+    lv_obj_set_style_bg_color(camera_switch_track_, lv_color_hex(COLOR_TRACK), LV_STATE_PRESSED);
+    lv_obj_set_style_border_color(camera_switch_track_, lv_color_hex(COLOR_MUTED), LV_STATE_PRESSED);
+    lv_obj_set_style_bg_color(camera_switch_track_, lv_color_hex(COLOR_TEXT), LV_STATE_CHECKED);
+    lv_obj_set_style_border_color(camera_switch_track_, lv_color_hex(COLOR_TEXT), LV_STATE_CHECKED);
+    lv_obj_set_style_bg_color(camera_switch_track_, lv_color_hex(COLOR_RESET), LV_STATE_CHECKED | LV_STATE_PRESSED);
+    lv_obj_add_event_cb(camera_switch_track_, camera_toggle_event, LV_EVENT_CLICKED, this);
+    camera_switch_knob_ = make_shape(camera_switch_track_, 0, 0, 32, 32, 16);
+    lv_obj_set_style_bg_opa(camera_switch_knob_, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(camera_switch_knob_, lv_color_hex(COLOR_MUTED), 0);
+    lv_obj_align(camera_switch_knob_, LV_ALIGN_LEFT_MID, 5, 0);
+    gesture_progress_ = lv_bar_create(screen);
+    lv_obj_remove_style_all(gesture_progress_);
+    lv_obj_set_pos(gesture_progress_, MARGIN, HEADER_H - 4);
+    lv_obj_set_size(gesture_progress_, CARD_W, 3);
+    lv_bar_set_range(gesture_progress_, 0, 100);
+    lv_obj_set_style_bg_color(gesture_progress_, lv_color_hex(COLOR_TRACK), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(gesture_progress_, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(gesture_progress_, lv_color_hex(COLOR_RESET), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(gesture_progress_, LV_OPA_COVER, LV_PART_INDICATOR);
+    lv_obj_add_flag(gesture_progress_, LV_OBJ_FLAG_HIDDEN);
+#endif
     lv_obj_add_flag(settings_panel_, LV_OBJ_FLAG_HIDDEN);
 }
 
-bool DisplayUi::apply_settings(const DisplaySettings& settings, bool visible, bool save_error, bool modified)
+bool DisplayUi::apply_settings(const DisplaySettings& settings, bool camera, bool visible,
+                               bool save_error, bool modified)
 {
     DisplayLock lock;
     if (!lock) return false;
@@ -845,11 +932,122 @@ bool DisplayUi::apply_settings(const DisplaySettings& settings, bool visible, bo
     else lv_label_set_text_fmt(settings_timeout_, "AFTER IDLE / MIN - CURRENT %lu SEC",
                               static_cast<unsigned long>(settings.clock_timeout_seconds));
     lv_label_set_text(settings_hint_, save_error ? "SAVE FAILED - TRY AGAIN" : "");
+    if (camera_switch_track_) {
+        lv_obj_set_state(camera_switch_track_, LV_STATE_CHECKED, camera);
+        lv_obj_set_style_bg_color(camera_switch_knob_, lv_color_hex(camera ? COLOR_BG : COLOR_MUTED), 0);
+        lv_obj_align(camera_switch_knob_, camera ? LV_ALIGN_RIGHT_MID : LV_ALIGN_LEFT_MID, camera ? -5 : 5, 0);
+    }
     if (visible && !was_visible) {
         lv_obj_remove_flag(settings_panel_, LV_OBJ_FLAG_HIDDEN);
         lv_obj_move_foreground(settings_panel_);
     } else if (!visible) lv_obj_add_flag(settings_panel_, LV_OBJ_FLAG_HIDDEN);
     return true;
+}
+
+void DisplayUi::camera_toggle_event(lv_event_t* event)
+{
+    auto* ui = static_cast<DisplayUi*>(lv_event_get_user_data(event));
+    if (ui->settings_visible_.load(std::memory_order_relaxed))
+        ui->camera_toggle_.store(true, std::memory_order_relaxed);
+}
+
+void DisplayUi::camera_preview_toggle_event(lv_event_t* event)
+{
+    auto* ui = static_cast<DisplayUi*>(lv_event_get_user_data(event));
+    if (!ui->camera_preview_ ||
+        !ui->camera_preview_available_.load(std::memory_order_relaxed)) return;
+    const bool enabled = !ui->camera_preview_enabled_.load(std::memory_order_relaxed);
+    ui->camera_preview_enabled_.store(enabled, std::memory_order_relaxed);
+    lv_obj_set_flag(ui->camera_preview_, LV_OBJ_FLAG_HIDDEN, !enabled);
+}
+
+bool DisplayUi::show_camera_state(bool enabled, GestureStatus status, uint8_t progress, bool visible)
+{
+    if (!camera_indicator_) return true;
+    DisplayLock lock;
+    if (!lock) return false;
+    // Text-bright while the sensor is starting or capturing; dim while the switch
+    // is on but capture is paused (settings, pairing, OTA); dim and struck
+    // through when capture failed and needs a switch-off/on retry or a reboot.
+    const bool capturing = status == GestureStatus::Starting || status == GestureStatus::Ready;
+    const bool failed = status == GestureStatus::CameraError || status == GestureStatus::MemoryError ||
+                        status == GestureStatus::Fault;
+    const lv_color_t color = lv_color_hex(capturing ? COLOR_TEXT : COLOR_DIM);
+    lv_obj_set_flag(camera_indicator_, LV_OBJ_FLAG_HIDDEN, !enabled);
+    for (lv_obj_t* part : camera_indicator_parts_) lv_obj_set_style_bg_color(part, color, 0);
+    for (lv_obj_t* slash : camera_indicator_slash_) lv_obj_set_flag(slash, LV_OBJ_FLAG_HIDDEN, !failed);
+    lv_obj_set_flag(gesture_progress_, LV_OBJ_FLAG_HIDDEN, !visible || !progress);
+    const bool available = enabled && visible && status == GestureStatus::Ready;
+    camera_preview_available_.store(available, std::memory_order_relaxed);
+    if (camera_preview_)
+        lv_obj_set_flag(camera_preview_, LV_OBJ_FLAG_HIDDEN,
+            !available || !camera_preview_enabled_.load(std::memory_order_relaxed));
+    if (visible && progress) {
+        lv_bar_set_value(gesture_progress_, progress, LV_ANIM_OFF);
+        lv_obj_move_foreground(gesture_progress_);
+    }
+    return true;
+}
+
+void DisplayUi::build_camera_preview(lv_obj_t* screen)
+{
+#if CONFIG_MOSAICO_CAMERA_PREVIEW
+    // Half-resolution RGB preview; either rotated dimension is at most 160 pixels.
+    constexpr uint32_t kSide = 160;
+    const uint32_t stride = lv_draw_buf_width_to_stride(kSide, LV_COLOR_FORMAT_RGB565);
+    camera_preview_pixels_ = static_cast<uint8_t*>(
+        heap_caps_aligned_calloc(LV_DRAW_BUF_ALIGN, stride, kSide, MALLOC_CAP_SPIRAM));
+    if (!camera_preview_pixels_) return;
+    camera_preview_ = make_shape(screen, SCREEN_W - MARGIN - kSide, CONTENT_Y + 8, kSide, kSide, 0);
+    camera_preview_canvas_ = lv_canvas_create(camera_preview_);
+    lv_canvas_set_buffer(camera_preview_canvas_, camera_preview_pixels_, kSide, 120, LV_COLOR_FORMAT_RGB565);
+    lv_obj_set_pos(camera_preview_canvas_, 0, 0);
+    camera_preview_box_ = make_shape(camera_preview_, 0, 0, 1, 1, 0);
+    lv_obj_set_style_border_width(camera_preview_box_, 2, 0);
+    lv_obj_set_style_border_color(camera_preview_box_, lv_color_hex(COLOR_TEXT), 0);
+    lv_obj_add_flag(camera_preview_box_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(camera_preview_, LV_OBJ_FLAG_HIDDEN);
+#else
+    (void)screen;
+#endif
+}
+
+void DisplayUi::show_camera_preview(const uint8_t* rgb, unsigned width, unsigned height, const HandObservation& hand)
+{
+    if (!camera_preview_enabled_.load(std::memory_order_relaxed) ||
+        !camera_preview_available_.load(std::memory_order_relaxed) ||
+        !camera_preview_canvas_ || !rgb || width > 320 || height > 320) return;
+    const uint32_t w = width / 2;
+    const uint32_t h = height / 2;
+    DisplayLock lock;
+    if (!lock) return;
+    // Visibility can change while this frame waits for the display lock.
+    if (lv_obj_has_flag(camera_preview_, LV_OBJ_FLAG_HIDDEN)) return;
+    const lv_image_dsc_t* image = lv_canvas_get_image(camera_preview_canvas_);
+    if (image->header.w != w || image->header.h != h) {
+        lv_canvas_set_buffer(camera_preview_canvas_, camera_preview_pixels_, w, h, LV_COLOR_FORMAT_RGB565);
+        lv_obj_set_size(camera_preview_, w, h);
+        lv_obj_set_x(camera_preview_, SCREEN_W - MARGIN - w);
+    }
+    const uint32_t stride = lv_canvas_get_image(camera_preview_canvas_)->header.stride;
+    for (uint32_t y = 0; y < h; ++y) {
+        auto* row = reinterpret_cast<uint16_t*>(camera_preview_pixels_ + y * stride);
+        for (uint32_t x = 0; x < w; ++x) {
+            const uint8_t* p = rgb + (size_t(y) * 2 * width + x * 2) * 3;
+            row[x] = uint16_t(((p[0] & 0xF8) << 8) | ((p[1] & 0xFC) << 3) | (p[2] >> 3));
+        }
+    }
+    // The image cache is disabled (CONFIG_LV_CACHE_DEF_SIZE=0), so invalidation redraws the new pixels.
+    lv_obj_invalidate(camera_preview_canvas_);
+    if (hand.count) {
+        const int bw = int(hand.width * w);
+        const int bh = int(hand.height * h);
+        lv_obj_set_pos(camera_preview_box_, int(hand.x * w) - bw / 2, int(hand.y * h) - bh / 2);
+        lv_obj_set_size(camera_preview_box_, bw, bh);
+        lv_obj_remove_flag(camera_preview_box_, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(camera_preview_box_, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 void DisplayUi::settings_event(lv_event_t* event)

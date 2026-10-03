@@ -88,6 +88,46 @@ config MOSAICO_USAGE_PANEL_TILT_WAKE_DEGREES
 
 endmenu
 
+menu "Camera gestures"
+
+config MOSAICO_GESTURE_INPUT
+    bool "Build local CameraBoard gesture input"
+    default y
+    help
+        Include CameraBoard capture (OV3640 or SC101IOT) and ESP-DL models. Runtime capture remains off
+        until enabled and saved in the display settings. The camera occupies
+        the left slot and GPIO33, so USB Serial/JTAG cannot be used concurrently.
+
+config MOSAICO_CAMERA_ROTATION
+    int "Camera mounting correction (0, 90, 180 or 270 degrees clockwise)"
+    range 0 270
+    default 90
+    depends on MOSAICO_GESTURE_INPUT
+    help
+        Rotates the mirrored raw image into panel rotation-0 coordinates. The
+        current display rotation is then inverted. The reference pipelines
+        (mosaico_module_camera, esp-vision) rotate the raw frame 90 degrees
+        counter-clockwise without mirroring to make it model-upright; with
+        mirroring applied first, the same upright view needs 90 clockwise.
+
+config MOSAICO_CAMERA_MIRROR
+    bool "Mirror the camera horizontally before rotation"
+    default y
+    depends on MOSAICO_GESTURE_INPUT
+    help
+        Mirror the front-facing camera into the user's screen coordinates.
+
+config MOSAICO_CAMERA_PREVIEW
+    bool "Enable camera preview toggled by the status icon"
+    default y
+    depends on MOSAICO_GESTURE_INPUT
+    help
+        The status-bar camera icon toggles a preview of the model input
+        and hand location box. The preview starts hidden, its visibility is
+        not persisted, and toggling it does not change gesture recognition.
+
+endmenu
+
 menu "Bluetooth"
 
 config MOSAICO_USAGE_PANEL_BLE_ADVERTISING_PREFIX

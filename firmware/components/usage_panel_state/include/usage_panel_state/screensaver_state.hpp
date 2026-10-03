@@ -35,6 +35,8 @@ public:
         uint64_t idle_delay_ms = kDefaultIdleDelayMs);
 
     void reset(uint64_t now_ms, Page page);
+    /** Enters the clock once; repeated requests preserve the original restore page. */
+    void enter_clock(uint64_t now_ms, Page current_page);
     /** Zero disables automatic entry; explicit toggles remain available. */
     void set_idle_delay(uint64_t delay_ms) { idle_delay_ms_ = delay_ms; }
     void note_touch_down(uint64_t now_ms);

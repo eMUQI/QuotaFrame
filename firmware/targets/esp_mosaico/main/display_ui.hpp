@@ -6,6 +6,7 @@
 #include "esp_lcd_panel_io.h"
 #include "lvgl.h"
 #include "orientation.hpp"
+#include "gesture_input.hpp"
 #include "usage_panel_state/display_settings.hpp"
 #include "usage_panel_state/page_state.hpp"
 #include "usage_panel_state/panel_presentation.hpp"
@@ -29,7 +30,21 @@ public:
     bool begin(ScreenRotation initial_rotation);
 
     void request_page(Page page) { requested_page_.store(page, std::memory_order_relaxed); }
-    bool apply_settings(const DisplaySettings& settings, bool visible, bool save_error = false, bool modified = false);
+    /** Shows the settings preview; camera is the previewed switch state, committed by SAVE. */
+    bool apply_settings(const DisplaySettings& settings, bool camera, bool visible,
+                        bool save_error = false, bool modified = false);
+    /** Consumes one press of the settings camera switch. The switch never changes itself. */
+    bool take_camera_toggle() { return camera_toggle_.exchange(false, std::memory_order_relaxed); }
+    /**
+     * Updates the header camera icon and the OK-hold progress bar.
+     * Returns false if the LVGL lock was unavailable, so the caller can retry.
+     */
+    bool show_camera_state(bool enabled, GestureStatus status, uint8_t progress, bool feedback_visible);
+    /**
+     * Draws the model input at half size with the detected box (debug preview).
+     * Called from the vision worker; drawing requires an enabled, available preview.
+     */
+    void show_camera_preview(const uint8_t* rgb, unsigned width, unsigned height, const HandObservation& hand);
     SettingsAction take_settings_action()
     {
         return settings_action_.exchange(SettingsAction::None, std::memory_order_relaxed);
@@ -105,7 +120,10 @@ private:
     };
 
     void build_settings(lv_obj_t* screen);
+    void build_camera_preview(lv_obj_t* screen);
     static void settings_event(lv_event_t* event);
+    static void camera_toggle_event(lv_event_t* event);
+    static void camera_preview_toggle_event(lv_event_t* event);
     static void long_press_event(lv_event_t* event);
     void build_header(lv_obj_t* screen);
     void build_overview(lv_obj_t* screen);
@@ -140,6 +158,20 @@ private:
     lv_obj_t* settings_buttons_[9]{};
     lv_obj_t* settings_timeout_ = nullptr;
     lv_obj_t* settings_hint_ = nullptr;
+    lv_obj_t* camera_switch_track_ = nullptr;
+    lv_obj_t* camera_switch_knob_ = nullptr;
+    lv_obj_t* camera_indicator_ = nullptr;
+    lv_obj_t* camera_indicator_parts_[3]{};  // Viewfinder bump, body and lens centre.
+    lv_obj_t* camera_indicator_lens_ = nullptr;   // Background-coloured lens ring.
+    lv_obj_t* camera_indicator_slash_[2]{};  // Background halo and stroke.
+    lv_obj_t* gesture_progress_ = nullptr;
+    std::atomic<bool> camera_preview_enabled_{false};
+    std::atomic<bool> camera_preview_available_{false};  // Allows hidden frames to skip the display lock.
+    lv_obj_t* camera_preview_ = nullptr;
+    lv_obj_t* camera_preview_canvas_ = nullptr;
+    lv_obj_t* camera_preview_box_ = nullptr;
+    uint8_t* camera_preview_pixels_ = nullptr;  // RGB565 canvas buffer in PSRAM.
+    std::atomic<bool> camera_toggle_{false};
     uint8_t brightness_percent_ = 50;  // Serialized by the LVGL lock.
     std::atomic<Page> requested_page_{Page::Overview};
     std::atomic<bool> ota_active_{false};

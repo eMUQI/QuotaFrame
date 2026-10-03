@@ -4,6 +4,20 @@
 
 using namespace usage_panel;
 
+TEST_CASE("explicit clock entry is idempotent and wakes to the original page", "[screensaver]")
+{
+    ScreensaverController controller(0);
+    controller.reset(0, Page::Codex);
+    controller.enter_clock(1000, Page::Claude);
+    controller.enter_clock(2000, Page::Overview);
+    TEST_ASSERT_TRUE(controller.view(2000).active);
+    TEST_ASSERT_EQUAL_INT(int(Page::Claude), int(controller.restore_page()));
+    controller.note_touch_down(3000);
+    TEST_ASSERT_FALSE(controller.view(3000).active);
+    TEST_ASSERT_TRUE(controller.view(3000).consume_touch);
+    TEST_ASSERT_EQUAL_INT(int(Page::Claude), int(controller.restore_page()));
+}
+
 TEST_CASE("screensaver enters after five minutes and preserves page", "[screensaver]")
 {
     ScreensaverController controller;

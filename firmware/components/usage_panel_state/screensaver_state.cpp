@@ -56,6 +56,11 @@ void ScreensaverController::enter(uint64_t now_ms, Page current_page)
     ignore_wake_until_ms_ = 0;
 }
 
+void ScreensaverController::enter_clock(uint64_t now_ms, Page current_page)
+{
+    if (!active_) enter(now_ms, current_page);
+}
+
 void ScreensaverController::exit(uint64_t now_ms)
 {
     active_ = false;
