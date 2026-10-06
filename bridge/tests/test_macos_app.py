@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import gc
 import os
 import unittest
+import weakref
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -74,6 +76,43 @@ class _RecordingMonitor:
 
 
 class MenuBarUpdateWiringTests(unittest.IsolatedAsyncioTestCase):
+    async def test_adoption_survives_gc_and_releases_completed_future(self):
+        application, _, _ = self.make_application()
+        application._loop = asyncio.get_running_loop()
+        application._graph = object()
+        waiting = []
+
+        async def scan(*args, **kwargs):
+            response = asyncio.get_running_loop().create_future()
+            waiting.append(weakref.ref(response))
+            await response
+
+        with patch.object(app, "run_adoption", new=scan):
+            application._add_device()
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+            gc.collect()
+            self.assertIsNotNone(waiting[0]())
+            application._add_device()
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+            self.assertEqual(len(waiting), 1)
+            waiting[0]().set_result(())
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+            self.assertFalse(application._adoption_running)
+            self.assertIsNone(application._adoption_future)
+            application._add_device()
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+            with patch.object(app.LOGGER, "exception") as report:
+                application._adoption_future.cancel()
+                await asyncio.sleep(0)
+                await asyncio.sleep(0)
+                report.assert_not_called()
+            self.assertFalse(application._adoption_running)
+            self.assertIsNone(application._adoption_future)
+
     def make_application(
         self,
         *,

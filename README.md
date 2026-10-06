@@ -32,6 +32,7 @@ The data source handles account sign-in and usage retrieval. Bridge sends only u
 | Waveshare ePaper 3.97 | 800×480 e-paper with four grayscale levels | Temperature and humidity, usage trends (microSD card required) |
 | ESP-Mosaico | 480×480 AMOLED | Touchscreen, AI button, auto-rotation, camera gestures (experimental) |
 | Waveshare RLCD 4.2 | 400×300 monochrome reflective LCD | KEY / BOOT navigation, clock, usage trends (microSD card required) |
+| MindReset Read Pico | 684×1216 e-paper with 16 grayscale levels | Touchscreen and three keys, clock, auto-rotation, usage trends (microSD card required) |
 
 All devices support Codex / Claude usage display, retain the last usage data when disconnected, and support firmware updates over Bluetooth. See the [device guide](docs/devices.md) for a full feature comparison and control shortcuts.
 
@@ -43,7 +44,7 @@ All devices support Codex / Claude usage display, retain the last usage data whe
 
 ### 1. Flash the Firmware
 
-Open the [web flasher](https://quotaframe.com/) in Chrome or Edge on your computer, select your device model, connect it via USB, and follow the instructions. No ESP-IDF installation is required.
+Open the [web flasher](https://quotaframe.com/) in Chrome or Edge on your computer, select your device model, connect it via USB, and follow the instructions. No ESP-IDF installation is required. MindReset Read Pico is not in the web flasher; write its release image as described in the firmware guide.
 
 For manual flashing or serial recovery, see the [firmware guide](firmware/README.md#烧录和串口日志).
 
@@ -78,7 +79,7 @@ See the [Bridge guide](bridge/README.md) for installation and connection trouble
 
 ## Acknowledgments
 
-Thanks to Waveshare for supporting this project through sponsorship.
+Thanks to [Waveshare](https://www.waveshare.com/) and [MindReset](https://dot.mindreset.tech/) for their support with development devices.
 
 Usage data is provided by [CodexBar](https://github.com/steipete/CodexBar) and [Win-CodexBar](https://github.com/nesszer/Win-CodexBar). Thanks to [esp-desktop-buddy](https://github.com/espressif/esp-desktop-buddy), [LVGL](https://github.com/lvgl/lvgl), [Bleak](https://github.com/hbldh/bleak), [pystray](https://github.com/moses-palmer/pystray), [Pillow](https://github.com/python-pillow/Pillow), and [PyObjC](https://github.com/ronaldoussoren/pyobjc) for supporting the firmware and desktop application.
 

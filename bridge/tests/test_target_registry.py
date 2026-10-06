@@ -59,6 +59,14 @@ class TargetRegistryTests(unittest.TestCase):
                 "ws_rlcd_42_full.bin",
                 "waveshare-esp32-s3-rlcd-42",
             ),
+            "mindreset_read_pico": (
+                "MindReset Read Pico",
+                "firmware/targets/mindreset_read_pico",
+                "6.1",
+                "mr_read_pico.bin",
+                "mr_read_pico_full.bin",
+                "mindreset-read-pico",
+            ),
         }
         self.assertEqual(set(expected), set(TARGETS_BY_ID))
         self.assertEqual(
@@ -69,6 +77,7 @@ class TargetRegistryTests(unittest.TestCase):
                 "waveshare_epaper_397": 9,
                 "esp_mosaico": 32,
                 "waveshare_rlcd_42": 9,
+                "mindreset_read_pico": 9,
             },
         )
         for target_id, contract in expected.items():

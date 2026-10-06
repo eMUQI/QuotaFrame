@@ -129,6 +129,17 @@ TARGETS: tuple[TargetDefinition, ...] = (
             asset="assets/devices/waveshare_rlcd_42.jpg",
         ),
     ),
+    TargetDefinition(
+        id="mindreset_read_pico",
+        label="MindReset Read Pico",
+        firmware_project="firmware/targets/mindreset_read_pico",
+        idf_version="6.1",
+        ota_image="mr_read_pico.bin",
+        full_image="mr_read_pico_full.bin",
+        release_stem="mindreset-read-pico",
+        image_chip_id=9,
+        ota_partition_bytes=4 * 1024 * 1024,
+    ),
 )
 
 IDF_IMAGES: Mapping[str, str] = MappingProxyType(

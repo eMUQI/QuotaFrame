@@ -2,9 +2,13 @@
 from pathlib import Path
 import argparse
 from PIL import Image, ImageDraw, ImageFont
-p=argparse.ArgumentParser(); p.add_argument('font_dir',type=Path); p.add_argument('output',type=Path); a=p.parse_args()
+p=argparse.ArgumentParser(); p.add_argument('font_dir',type=Path); p.add_argument('output',type=Path); p.add_argument('--target',choices=['ws397','read_pico'],default='ws397'); a=p.parse_args()
 chars=''.join(chr(i) for i in range(32,127))
-sets=[(0,n,chars if n<=56 else '0123456789%:-. ') for n in [24,28,30,34,38,42,50,56,104,120,136,184]]+[(1,n,chars) for n in [15,16,17,20]]
+# Pixel sizes used by each target's layout, per family: Archivo 700, JetBrains Mono 500, JetBrains Mono 700.
+weights=[700,500,700]
+sizes={'ws397':([24,28,30,34,38,42,50,56,104,120,136,184],[15,16,17,20],[]),
+       'read_pico':([16,18,24,26,28,30,34,36,40,46,50,52,56,58,60,64,72,96,120,124,132,144,212,236],[18],[16,18,19,20,21,22,24,26,28,30])}[a.target]
+sets=[(family,n,chars if family or n<=56 else '0123456789%:-. ') for family in range(3) for n in sizes[family]]
 header='''#pragma once
 #include <cstdint>
 struct Glyph { uint32_t offset; int16_t width, height, left, top, advance; uint8_t character; };
@@ -16,7 +20,7 @@ extern const int font_count;
 out=['#include "fonts.hpp"']; names=[]
 for family,size,subset in sets:
     f=ImageFont.truetype(str(a.font_dir/('Archivo.ttf' if family==0 else 'JetBrainsMono.ttf')),size)
-    axes=f.get_variation_axes(); f.set_variation_by_axes([700 if x['name']==b'Weight' and family==0 else 500 if x['name']==b'Weight' else x['default'] for x in axes])
+    axes=f.get_variation_axes(); f.set_variation_by_axes([weights[family] if x['name']==b'Weight' else x['default'] for x in axes])
     # Inlining this in the glyph f-string below would nest single quotes, which requires Python 3.12.
     baseline=f.getbbox('0',anchor='la')[1]
     data=bytearray(); glyphs=[]

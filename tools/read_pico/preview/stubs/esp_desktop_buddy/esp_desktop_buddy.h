@@ -1,0 +1,2 @@
+#pragma once
+typedef struct esp_desktop_buddy_command_view esp_desktop_buddy_command_view_t;

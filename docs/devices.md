@@ -30,8 +30,11 @@ ePaper 3.97 与 ESP-Mosaico 的详细说明见 [ePaper 3.97 固件说明](../fir
 
 RLCD 4.2 使用 400×300 黑白反射式 LCD，提供总览、Codex / Claude 详情、趋势、时钟和设置页；竖屏仅在总览和时钟间轮换。它支持 RTC、温湿度显示、电压估算电量，以及需 FAT microSD 卡的 48 点趋势。屏幕方向由设置选择，可通过 Web 烧录器安装。当前实机验证范围和完整操作见 [RLCD 4.2 说明](../firmware/targets/waveshare_rlcd_42/README.md)。
 
+Read Pico 使用 684×1216 十六灰阶墨水屏，主页同屏显示 Codex 与 Claude 用量、告警状态和 24 小时趋势，另有时钟、设置、配对和 OTA 页面。它支持 PMU RTC、电量与充电状态、四向自动旋转、拿起时从自动时钟返回主页，以及需 FAT microSD 卡的 48 点趋势。首次安装写入 Release 中的 `mindreset-read-pico-full-` 镜像，方法见[固件说明](../firmware/README.md#烧录和串口日志)；完整操作见 [Read Pico 说明](../firmware/targets/mindreset_read_pico/README.md)。
+
 ## 屏幕快捷操作
 
+- **Read Pico**：KEY1 / KEY3 在主页与时钟间切换，KEY2 整屏刷新，长按 KEY2 约 0.8 秒进入或退出设置；设置中点按选项即保存，点 DONE 退出。OTA 待确认时点 CONFIRM / DENY，或按 KEY2 确认、长按拒绝。
 - **RLCD 4.2**：KEY 上一页，BOOT 下一页，长按 KEY 进入或退出设置；设置中 KEY 选择项目、BOOT 修改选项。KEY 可关闭当前用量告警。OTA 待确认时 KEY 确认，长按 KEY 拒绝。
 - **480×480 触屏设置（微雪 AMOLED 2.16 与 ESP-Mosaico）**：长按触屏约 0.8 秒进入，两块板均支持亮度与自动时钟设置。亮度即时预览；AUTO CLOCK 可选择 OFF、1、5、10、30 分钟。SAVE 保存并在重启后保留，CANCEL 撤销未保存调整。OFF 仅关闭自动进入时钟，托盘/菜单栏左键仍可主动切换；微雪另有 PWR 侧键，ESP-Mosaico 另有 AI 键。
 - **ESP-Mosaico 实验性手势**：安装左槽 CameraBoard 后，在设置中打开 CAMERA 并保存。用量页向任意方向挥手或左右招手切到下一页；OK 或点赞稳定保持约半秒进入时钟，挥手或招手唤醒。点击顶栏摄像头标识切换预览。完整说明见[手势指南](validation/mosaico-gestures.md)。

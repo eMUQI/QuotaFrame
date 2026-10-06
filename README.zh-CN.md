@@ -32,6 +32,7 @@ flowchart LR
 | Waveshare ePaper 3.97 | 800×480 四灰阶墨水屏 | 温湿度、用量趋势（需 microSD 卡） |
 | ESP-Mosaico | 480×480 AMOLED | 触屏、AI 键、自动旋转、摄像头手势（实验性） |
 | Waveshare RLCD 4.2 | 400×300 黑白反射式 LCD | KEY / BOOT 翻页、时钟、用量趋势（需 microSD 卡） |
+| MindReset Read Pico | 684×1216 十六灰阶墨水屏 | 触屏与三枚按键、时钟、自动旋转、用量趋势（需 microSD 卡） |
 
 所有设备均支持 Codex / Claude 用量显示、断连保留最后用量与蓝牙固件更新。完整功能对照及快捷操作见[设备说明](docs/devices.md)。
 
@@ -43,7 +44,7 @@ flowchart LR
 
 ### 1. 烧录固件
 
-使用桌面版 Chrome 或 Edge 打开 [Web 烧录器](https://quotaframe.com/)，选择手中的设备型号、连接 USB，按页面提示烧录，无需安装 ESP-IDF。
+使用桌面版 Chrome 或 Edge 打开 [Web 烧录器](https://quotaframe.com/)，选择手中的设备型号、连接 USB，按页面提示烧录，无需安装 ESP-IDF。MindReset Read Pico 不在 Web 烧录器中，请按固件说明写入 Release 镜像。
 
 需要手工烧录或串口恢复时，参阅[固件说明](firmware/README.md#烧录和串口日志)。
 
@@ -78,7 +79,7 @@ flowchart LR
 
 ## 致谢
 
-感谢微雪电子对本项目的赞助支持。
+感谢[微雪电子](https://www.waveshare.com/)与 [MindReset](https://dot.mindreset.tech/) 在开发设备上给予的支持。
 
 用量数据依赖 [CodexBar](https://github.com/steipete/CodexBar) 与 [Win-CodexBar](https://github.com/nesszer/Win-CodexBar)。感谢 [esp-desktop-buddy](https://github.com/espressif/esp-desktop-buddy)、[LVGL](https://github.com/lvgl/lvgl)、[Bleak](https://github.com/hbldh/bleak)、[pystray](https://github.com/moses-palmer/pystray)、[Pillow](https://github.com/python-pillow/Pillow) 与 [PyObjC](https://github.com/ronaldoussoren/pyobjc) 提供固件及桌面端支持。
 
