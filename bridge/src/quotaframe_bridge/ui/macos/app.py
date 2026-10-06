@@ -94,6 +94,7 @@ class MenuBarApplication(FirmwareUpdateActions):
         self._service: MultiDeviceBridgeService | None = None
         self._graph: TrayServiceGraph[DarwinPairer] | None = None
         self._adoption_running = False
+        self._adoption_future: concurrent.futures.Future[None] | None = None
         self._stopping = False
         self._shutdown_lock = threading.Lock()
         self._firmware_updates = 0
@@ -194,15 +195,24 @@ class MenuBarApplication(FirmwareUpdateActions):
 
     def _add_device(self) -> None:
         loop, graph = self._loop, self._graph
-        if loop is None or graph is None:
+        if loop is None or graph is None or self._stopping:
+            return
+        if self._adoption_future is not None and not self._adoption_future.done():
             return
         future = asyncio.run_coroutine_threadsafe(self._run_adoption(graph), loop)
+        # Retain the task chain while CoreBluetooth is awaiting a native callback.
+        self._adoption_future = future
 
         def report_failure(completed: concurrent.futures.Future[object]) -> None:
             try:
                 completed.result()
+            except concurrent.futures.CancelledError:
+                pass
             except Exception:
                 LOGGER.exception("manual device adoption failed")
+            finally:
+                if self._adoption_future is completed:
+                    self._adoption_future = None
 
         future.add_done_callback(report_failure)
 
