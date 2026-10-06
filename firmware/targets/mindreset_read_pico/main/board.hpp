@@ -42,6 +42,8 @@ class Board {
     // The PMU RTC counts UTC seconds; the wall clock needs the offset from the last time sync.
     int16_t utc_offset_minutes_ = 0;
     bool clock_set_ = false, external_ = false, moved_ = false, sampled_ = false;
+    // Starts true so that the boot probe is not repeated.
+    bool sd_present_ = true;
     int last_mg_[3]{};
 };
 } // namespace usage_panel::read_pico

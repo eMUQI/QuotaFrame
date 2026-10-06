@@ -75,7 +75,8 @@ offset in NVS; the time shows `--:--` until both are available. Battery level
 and charge state come from the PMU and feed the OTA power gate. Invalid PMU status
 readings do not authorize an update.
 
-Trend history uses a mounted FAT microSD card; absence is nonfatal. Samples are
+Trend history uses a mounted FAT microSD card; absence is nonfatal, and a card
+inserted while the device is running is mounted when it is detected. Samples are
 stored every 30 minutes as up to 48 timestamped records in `trend.bin`, with
 `trend.bak` as the replacement backup. Gaps longer than one hour are not connected.
 The upper service blocks use the latest Bridge publication; the trend uses only

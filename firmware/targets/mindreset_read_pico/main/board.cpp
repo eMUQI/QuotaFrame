@@ -65,7 +65,13 @@ bool Board::begin() {
 }
 void Board::poll(View &v) {
     read_pico_sd_info_t sd{};
-    v.sd = read_pico_sd_get_info(&sd) == ESP_OK && sd.mounted;
+    const bool sd_ok = read_pico_sd_get_info(&sd) == ESP_OK;
+    // The driver mounts only on request; a card inserted after the boot probe or reinserted
+    // after removal stays unmounted until a remount starts a new probe.
+    if (sd.present && !sd_present_)
+        read_pico_sd_remount();
+    sd_present_ = sd.present;
+    v.sd = sd_ok && sd.mounted;
     v.power_valid = v.charging = external_ = false;
     v.battery = -1;
     if (hw_.pmu_ready && read_pico_pmu_poll() == ESP_OK) {
