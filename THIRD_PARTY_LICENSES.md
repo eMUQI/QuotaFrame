@@ -242,6 +242,7 @@ For ESP Component Registry entries, `Registry license` is the API value for the 
 - SPDX: `OFL-1.1`
 - Generated subsets: weight 700; printable ASCII at 24–56 px, digits and `%:-. ` at 104–184 px
 - Copyright/notice: `firmware/targets/waveshare_epaper_397/main/fonts/Archivo-OFL.txt`
+- Read Pico subsets: weight 700; printable ASCII at 28–56 px, digits and `%:-. ` at 58–230 px; notice: `firmware/targets/mindreset_read_pico/main/fonts/Archivo-OFL.txt`
 
 ## JetBrains Mono generated font subsets
 
@@ -249,6 +250,15 @@ For ESP Component Registry entries, `Registry license` is the API value for the 
 - SPDX: `OFL-1.1`
 - Generated subsets: weight 500; printable ASCII at 15–20 px
 - Copyright/notice: `firmware/targets/waveshare_epaper_397/main/fonts/JetBrainsMono-OFL.txt`
+- Read Pico subsets: weight 500; printable ASCII at 16–26 px; notice: `firmware/targets/mindreset_read_pico/main/fonts/JetBrainsMono-OFL.txt`
+
+## Read Pico board components
+
+- Version: `28cde682a4468a581c278761922724f57d976418`
+- Source: https://github.com/MindReset/read_pico_firmware/tree/28cde682a4468a581c278761922724f57d976418/components
+- SPDX: `Apache-2.0` (`e0470_epaper_waveform`, `read_pico`, `read_pico_pmu`, `cst836u`, `sc7a20h`, `fca9555`, `sy7636a`, `pwm_audio`); `LGPL-3.0-or-later` (`epdiy`, a trimmed fork of https://github.com/vroland/epdiy v2.0.0)
+- Copyright/notice: `LICENSE` in each directory under `firmware/targets/mindreset_read_pico/components/`
+- Local integration: [UPSTREAM.md](firmware/targets/mindreset_read_pico/components/UPSTREAM.md)
 
 ## Waveshare ESP32-S3-ePaper-3.97 screen driver
 
