@@ -75,6 +75,8 @@ espressif-esp-mosaico-ota-v<version>.bin
 espressif-esp-mosaico-full-v<version>.bin
 waveshare-esp32-s3-rlcd-42-ota-v<version>.bin
 waveshare-esp32-s3-rlcd-42-full-v<version>.bin
+mindreset-read-pico-ota-v<version>.bin
+mindreset-read-pico-full-v<version>.bin
 manifest.json
 SHA256SUMS.txt
 LICENSE

@@ -11,8 +11,8 @@ eim run "idf.py -C firmware/targets/mindreset_read_pico -p <PORT> flash" v6.1
 The device advertises as `QF-MR-PICO-` followed by the final two Bluetooth MAC
 bytes, and its authenticated status identifies the model as `mindreset_read_pico`.
 Usage publication, time synchronization and OTA reuse the shared BLE protocol.
-The target is not listed in the Target Registry, so CI, releases and the web
-flasher do not build it.
+Release assets use the stem `mindreset-read-pico`; write the `-full-` image at
+offset 0 for a first installation.
 
 Board support comes from the vendor firmware; see
 [components/UPSTREAM.md](components/UPSTREAM.md). The 120 MHz flash and PSRAM

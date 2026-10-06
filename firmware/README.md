@@ -38,11 +38,11 @@ Folder Push 本地快照原因见 [UPSTREAM.md](components/esp_desktop_buddy_fol
 | ESP32-S3-ePaper-3.97 | 已维护 | 自绘帧缓冲、SSD1677 驱动、三向拨轮 |
 | ESP-Mosaico | 已维护 | 乐鑫 BSP、LVGL、触控标签和手势、AI 键 |
 | ESP32-S3-RLCD-4.2 | 已维护 | 自绘帧缓冲、ST7305 驱动、KEY / BOOT 按键 |
-| MindReset Read Pico | 仅源码构建 | 自绘帧缓冲、epdiy 驱动、触屏与三枚电容键 |
+| MindReset Read Pico | 已维护 | 自绘帧缓冲、epdiy 驱动、触屏与三枚电容键 |
 
 各目标的实机验收范围见 [verification.md](../docs/verification.md)。
 
-维护中的硬件目标统一登记在 `bridge/src/quotaframe_bridge/targets.py`，用于 CI、Release、镜像结构和分区容量校验。Bridge 基础发现使用公共 QF 名称空间和 NUS，运行时名称来自 status，常驻会话来自 `devices.json`；第三方设备基础接入无需加入 registry。`scripts/target_registry.py` 输出官方构建与发布 matrix。Read Pico 未登记在 registry，CI、Release 和 Web 烧录器不构建它，需从源码构建，见[目标说明](targets/mindreset_read_pico/README.md)。
+维护中的硬件目标统一登记在 `bridge/src/quotaframe_bridge/targets.py`，用于 CI、Release、镜像结构和分区容量校验。Bridge 基础发现使用公共 QF 名称空间和 NUS，运行时名称来自 status，常驻会话来自 `devices.json`；第三方设备基础接入无需加入 registry。`scripts/target_registry.py` 输出官方构建与发布 matrix。
 
 新增或移植硬件目标时，先阅读 [Hardware Target Porting Guide](../docs/PORTING.md)。其中定义了 target 目录与 Registry 契约、共享/板级边界、分区与 OTA 要求、target test app 接入方式，以及 build-only 与 hardware-verified 的证据边界；可复制的最小工程骨架位于 `docs/porting/minimal-target/`。
 

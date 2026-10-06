@@ -32,6 +32,7 @@ The data source handles account sign-in and usage retrieval. Bridge sends only u
 | Waveshare ePaper 3.97 | 800×480 e-paper with four grayscale levels | Temperature and humidity, usage trends (microSD card required) |
 | ESP-Mosaico | 480×480 AMOLED | Touchscreen, AI button, auto-rotation, camera gestures (experimental) |
 | Waveshare RLCD 4.2 | 400×300 monochrome reflective LCD | KEY / BOOT navigation, clock, usage trends (microSD card required) |
+| MindReset Read Pico | 684×1216 e-paper with 16 grayscale levels | Touchscreen and three keys, clock, auto-rotation, usage trends (microSD card required) |
 
 All devices support Codex / Claude usage display, retain the last usage data when disconnected, and support firmware updates over Bluetooth. See the [device guide](docs/devices.md) for a full feature comparison and control shortcuts.
 
