@@ -79,7 +79,7 @@ See the [Bridge guide](bridge/README.md) for installation and connection trouble
 
 ## Acknowledgments
 
-Thanks to Waveshare for supporting this project through sponsorship.
+Thanks to [Waveshare](https://www.waveshare.com/) and [MindReset](https://dot.mindreset.tech/) for their support with development devices.
 
 Usage data is provided by [CodexBar](https://github.com/steipete/CodexBar) and [Win-CodexBar](https://github.com/nesszer/Win-CodexBar). Thanks to [esp-desktop-buddy](https://github.com/espressif/esp-desktop-buddy), [LVGL](https://github.com/lvgl/lvgl), [Bleak](https://github.com/hbldh/bleak), [pystray](https://github.com/moses-palmer/pystray), [Pillow](https://github.com/python-pillow/Pillow), and [PyObjC](https://github.com/ronaldoussoren/pyobjc) for supporting the firmware and desktop application.
 

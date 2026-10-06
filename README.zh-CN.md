@@ -79,7 +79,7 @@ flowchart LR
 
 ## 致谢
 
-感谢微雪电子对本项目的赞助支持。
+感谢[微雪电子](https://www.waveshare.com/)与 [MindReset](https://dot.mindreset.tech/) 在开发设备上给予的支持。
 
 用量数据依赖 [CodexBar](https://github.com/steipete/CodexBar) 与 [Win-CodexBar](https://github.com/nesszer/Win-CodexBar)。感谢 [esp-desktop-buddy](https://github.com/espressif/esp-desktop-buddy)、[LVGL](https://github.com/lvgl/lvgl)、[Bleak](https://github.com/hbldh/bleak)、[pystray](https://github.com/moses-palmer/pystray)、[Pillow](https://github.com/python-pillow/Pillow) 与 [PyObjC](https://github.com/ronaldoussoren/pyobjc) 提供固件及桌面端支持。
 
