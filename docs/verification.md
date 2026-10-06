@@ -17,6 +17,8 @@ macOS 的 M5 配对、加密连接、用量和菜单操作已有验证；当前�
 
 RLCD 4.2 已验证一块开发板的横屏主页、详情页用量显示和已绑定 Bridge 的加密重连；首次配对、OTA、竖屏/翻转、按键、传感器、音频及 microSD 卡仍待实机验证。详见[目标说明](../firmware/targets/waveshare_rlcd_42/README.md)。
 
+Read Pico 已在 macOS 验证一台设备的配对与加密连接、用量显示、主页 / 时钟 / 设置页面、触屏与按键操作、自动旋转、趋势记录、时钟与电量显示。详见[目标说明](../firmware/targets/mindreset_read_pico/README.md)。
+
 ## 性能与显示参考
 
 - [AMOLED 帧缓冲与 BLE 基准](validation/amoled-performance.md)：记录历史实验条件与测量边界。

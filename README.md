@@ -44,7 +44,7 @@ All devices support Codex / Claude usage display, retain the last usage data whe
 
 ### 1. Flash the Firmware
 
-Open the [web flasher](https://quotaframe.com/) in Chrome or Edge on your computer, select your device model, connect it via USB, and follow the instructions. No ESP-IDF installation is required. MindReset Read Pico is not in the web flasher; write its release image as described in the firmware guide.
+Open the [web flasher](https://quotaframe.com/) in Chrome or Edge on your computer, select your device model, connect it via USB, and follow the instructions. No ESP-IDF installation is required.
 
 For manual flashing or serial recovery, see the [firmware guide](firmware/README.md#烧录和串口日志).
 
