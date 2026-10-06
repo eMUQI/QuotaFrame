@@ -1,6 +1,6 @@
 # Device photographs
 
-Official product imagery, downloaded on 2026-09-08, 2026-09-20 and 2026-10-01. These images identify the
+Official product imagery, downloaded on 2026-09-08, 2026-09-20, 2026-10-01 and 2026-10-06. These images identify the
 supported hardware. Their screen contents are vendor demos, not QuotaFrame.
 The page credits the respective official documentation next to the images.
 
@@ -20,8 +20,11 @@ The page credits the respective official documentation next to the images.
 - `waveshare_rlcd_42.jpg`: Waveshare ESP32-S3-RLCD-4.2.
   Source: https://docs.waveshare.com/ESP32-S3-RLCD-4.2
   Image: https://docs.waveshare.com/assets/images/ESP32-S3-RLCD-4.2-DocHeader-fc9cf7209028a9fad948c565b694bd6b.webp
+- `mindreset_read_pico.png`: MindReset Read Pico.
+  Source: https://dot.mindreset.tech/docs/read_0
+  Image: https://os-cdn.mindreset.tech/dot/docs/%25E6%25A0%2587%25E5%2587%2586_1790742665415.png
 
 Images retain the rights of their respective owners and are not covered by the
 repository's source code license. No screen replacement or device alteration
 has been applied. The M5StickS3, AMOLED 2.16 and RLCD 4.2 photos are cropped and encoded as JPEG.
-The ePaper 3.97 and ESP-Mosaico images retain their original encoding.
+The ePaper 3.97 and ESP-Mosaico images retain their original encoding. The Read Pico image is scaled down and kept as PNG.

@@ -565,6 +565,10 @@ export async function initialize({
       get("chosen-device-image").src = item.asset;
       get("flash-panel").hidden = false;
       get("flash-title").focus({ preventScroll: true });
+      // Hiding the picker shortens the page, which leaves the panel above the viewport
+      // when the chosen card was in a lower row.
+      const summary = get("device-summary");
+      if (summary.getBoundingClientRect().top < 0) summary.scrollIntoView({ block: "start" });
       document.querySelectorAll("[data-target-id]").forEach((other) => {
         const selected = other === card;
         other.classList.toggle("is-selected", selected);

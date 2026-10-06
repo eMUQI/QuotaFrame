@@ -309,6 +309,7 @@ class TargetRegistryTests(unittest.TestCase):
             ("waveshare_epaper_397", "ESP32-S3"),
             ("esp_mosaico", "ESP32-S31"),
             ("waveshare_rlcd_42", "ESP32-S3"),
+            ("mindreset_read_pico", "ESP32-S3"),
         ):
             web = TARGETS_BY_ID[target_id].web_flash
             self.assertIsNotNone(web)

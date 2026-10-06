@@ -161,6 +161,14 @@ class WebFlasherAssemblerTests(unittest.TestCase):
                     "image": "waveshare-esp32-s3-rlcd-42-full-v1.2.3.bin",
                     "manifest": "manifests/waveshare_rlcd_42.json",
                 },
+                {
+                    "id": "mindreset_read_pico",
+                    "name": "MindReset Read Pico",
+                    "description": "684 × 1216 十六灰阶墨水屏 · 触屏与按键操作",
+                    "asset": "assets/devices/mindreset_read_pico.png",
+                    "image": "mindreset-read-pico-full-v1.2.3.bin",
+                    "manifest": "manifests/mindreset_read_pico.json",
+                },
             ],
         )
 
