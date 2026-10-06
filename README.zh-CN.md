@@ -44,7 +44,7 @@ flowchart LR
 
 ### 1. 烧录固件
 
-使用桌面版 Chrome 或 Edge 打开 [Web 烧录器](https://quotaframe.com/)，选择手中的设备型号、连接 USB，按页面提示烧录，无需安装 ESP-IDF。
+使用桌面版 Chrome 或 Edge 打开 [Web 烧录器](https://quotaframe.com/)，选择手中的设备型号、连接 USB，按页面提示烧录，无需安装 ESP-IDF。MindReset Read Pico 不在 Web 烧录器中，请按固件说明写入 Release 镜像。
 
 需要手工烧录或串口恢复时，参阅[固件说明](firmware/README.md#烧录和串口日志)。
 

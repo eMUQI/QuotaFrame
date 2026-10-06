@@ -68,8 +68,10 @@ void Board::poll(View &v) {
     const bool sd_ok = read_pico_sd_get_info(&sd) == ESP_OK;
     // The driver mounts only on request; a card inserted after the boot probe or reinserted
     // after removal stays unmounted until a remount starts a new probe.
-    if (sd.present && !sd_present_)
+    if (sd.present && !sd_present_) {
         read_pico_sd_remount();
+        trend_loaded_ = false;
+    }
     sd_present_ = sd.present;
     v.sd = sd_ok && sd.mounted;
     v.power_valid = v.charging = external_ = false;
@@ -214,9 +216,10 @@ bool Board::save(const Settings &s) {
 void Board::sample_trend(View &v) {
     if (!v.sd)
         return;
-    static bool loaded = false;
-    if (!loaded) {
-        loaded = true;
+    if (!trend_loaded_) {
+        trend_loaded_ = true;
+        // The card is the store: history from a previous card is not carried onto this one.
+        v.trend_count = 0;
         for (const char *path : {"/sdcard/trend.bin", "/sdcard/trend.bak"}) {
             FILE *f = fopen(path, "rb");
             if (!f)

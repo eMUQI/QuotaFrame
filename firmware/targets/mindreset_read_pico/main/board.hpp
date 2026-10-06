@@ -32,7 +32,7 @@ class Board {
     /** Returns the stored settings, with defaults for missing keys and indices clamped to range. */
     Settings load();
     /**
-     * Loads the trend history from the SD card on the first call with a mounted card, then appends
+     * Loads the trend history on the first call after a card is mounted, then appends
      * one sample per half hour while the link is encrypted. Does nothing without a card.
      */
     void sample_trend(View &view);
@@ -44,6 +44,7 @@ class Board {
     bool clock_set_ = false, external_ = false, moved_ = false, sampled_ = false;
     // Starts true so that the boot probe is not repeated.
     bool sd_present_ = true;
+    bool trend_loaded_ = false;
     int last_mg_[3]{};
 };
 } // namespace usage_panel::read_pico

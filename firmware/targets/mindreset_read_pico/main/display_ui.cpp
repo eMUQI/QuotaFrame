@@ -3,6 +3,7 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "fonts.hpp"
+#include "read_pico_board.h"
 #include "read_pico_epd_timing.h"
 #include "usage_ota/presentation.hpp"
 #include <algorithm>
@@ -847,6 +848,12 @@ void DisplayUi::render(const View &v, bool baseline) {
     read_pico_epd_use_scan(READ_PICO_EPD_SCAN_FULL);
     epd_lcd_set_prefill_lines(32);
     epd_poweron();
+    if (!read_pico_rails_on()) {
+        // epdiy reports success without panel rails; the frame must not count as displayed.
+        rendered_scene_ = -1;
+        ESP_LOGE("read_pico", "Panel rails did not power up");
+        return;
+    }
     const int64_t start = esp_timer_get_time();
     const char *mode = "GL16";
     EpdDrawError result;
