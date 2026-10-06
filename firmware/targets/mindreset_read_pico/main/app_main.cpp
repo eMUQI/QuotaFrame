@@ -94,7 +94,7 @@ extern "C" void app_main() {
     RetainedOtaFailure shown_failure;
     // 255 marks a window without a displayed value.
     uint8_t shown[2][2] = {{255, 255}, {255, 255}};
-    ESP_LOGI("read_pico", "READY serial: 1-9 design boards, i state, r live");
+    ESP_LOGI("read_pico", "READY serial: 1-9 views, t test card, i state, r live");
     while (true) {
         view.now_ms = esp_timer_get_time() / 1000;
         ui.tick(view.now_ms);

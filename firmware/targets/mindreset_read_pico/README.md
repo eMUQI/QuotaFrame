@@ -21,7 +21,7 @@ on the flash fitted to this board.
 
 ## Display
 
-The layout follows the design boards 01-08: Home with both services, the
+The views are Home with both services, the
 24-hour trend and alarm states; the idle clock; a landscape Home; pairing; OTA
 progress and confirmation; Display settings; and the offline state. The view
 rotates in quarter turns. Automatic rotation applies after a 1.5-second stable
@@ -96,8 +96,7 @@ in mg together with the resolved orientation.
 
 ## USB diagnostics
 
-Commands are accepted while OTA is idle. `1`-`9` show synthetic views of the
-design boards: Home, alarms, clock, landscape Home, pairing, OTA progress,
+Commands are accepted while OTA is idle. `1`-`9` show synthetic views: Home, alarms, clock, landscape Home, pairing, OTA progress,
 settings, offline and OTA confirmation. `t` shows the gray-level test card: four
 candidates each for small text, bar tracks, rules, large digits and alarm washes,
 refreshed with GC16. `r` returns to live data and `i` prints board state. The previews do not alter the live usage model or start an OTA.

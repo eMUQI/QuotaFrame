@@ -16,8 +16,7 @@ and retain the shared on-device confirmation and power gate.
 A BLE OTA from 0.9.0 to 0.9.1 through `tools/run_ota_validation.py` passed on
 2026-09-22 (153 s, physical confirmation, reboot and version check). The OTA page
 used monochrome refreshes: a full refresh on entry and after 20 partial
-updates, with partial refreshes for progress updates; power-loss recovery and rollback
-remain unverified.
+updates, with partial refreshes for progress updates.
 
 ## Display and controls
 

@@ -1,4 +1,4 @@
-// Renders the nine design boards and the gray-level test card with the firmware drawing code, one PGM per board and rotation.
+// Renders the nine diagnostic views and the gray-level test card with the firmware drawing code, one PGM per view and rotation.
 #include "demo_view.hpp"
 #include "epdiy.h"
 #include <cstdio>
@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
     ui.begin(&state);
     View live{};
     snprintf(live.device_name, sizeof(live.device_name), "QF-MR-PICO-3C7A");
-    // Each board is rendered upright and, with the suffix "l", turned to landscape.
+    // Each view is rendered upright and, with the suffix "l", turned to landscape.
     // The test card is portrait only.
     for (int n = 0; n < 19; ++n) {
         const char board = "123456789t"[n / 2];
@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
             }
         fclose(f);
     }
-    // Every control drawn on the settings and confirmation boards must be reachable by touch.
+    // Every control drawn on the settings and OTA confirmation views must be reachable by touch.
     const View settings = demo_view('7', live), confirm = demo_view('9', live);
     const bool ok = ui.hit(settings, 342, 1128).kind == TapTarget::Done &&
                     ui.hit(settings, 600, 750).kind == TapTarget::Option &&

@@ -53,6 +53,7 @@ Bridge 必须确认 `sec=true`、`protocol=1` 和 `caps` 包含 `usage.v1`。
 | `waveshare_amoled_216` | `Waveshare AMOLED 2.16` |
 | `waveshare_epaper_397` | `Waveshare ePaper 3.97` |
 | `waveshare_rlcd_42` | `Waveshare RLCD 4.2` |
+| `mindreset_read_pico` | `MindReset Read Pico` |
 
 同名设备由 Bridge 添加地址后缀区分。BLE 广播名称继续使用 `QF-` 前缀、型号缩写和设备后缀；显示名称不参与 target 匹配或固件文件命名。
 

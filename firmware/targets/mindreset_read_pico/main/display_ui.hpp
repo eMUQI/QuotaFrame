@@ -9,6 +9,8 @@
 namespace usage_panel::read_pico {
 enum class Page { Home, Clock, Settings };
 struct Settings {
+    // Option indices. refresh: 15, 30, 60, 120 s. idle: off, 5, 15, 30 min.
+    // rotation: automatic, portrait, landscape.
     uint8_t refresh = 1, idle = 2, rotation = 0;
 };
 struct TrendPoint {
@@ -29,6 +31,7 @@ struct View {
     // Quarter turns from the upright portrait view; odd values are landscape.
     uint8_t orientation = 0;
     bool sd = false, save_error = false;
+    // Alarm level per service: 0 none, 1 from 80%, 2 from 95%.
     std::array<uint8_t, 2> warning{};
     std::array<TrendPoint, 48> trend{};
     int trend_count = 0;

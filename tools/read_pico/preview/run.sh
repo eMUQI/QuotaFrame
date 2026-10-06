@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Host-renders the Read Pico design boards to PNG files (clang or gcc, Python 3).
+# Host-renders the Read Pico views to PNG files (clang or gcc, Python 3).
 # Usage: tools/read_pico/preview/run.sh [output directory]
 set -euo pipefail
 cd "$(dirname "$0")/../../.."

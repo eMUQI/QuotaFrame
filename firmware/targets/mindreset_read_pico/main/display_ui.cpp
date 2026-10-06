@@ -13,7 +13,7 @@
 namespace usage_panel::read_pico {
 namespace {
 // The panel gray levels in use; epdiy reads the upper nibble. The panel renders light
-// grays close to paper, so tracks, rules and washes sit lower than their on-screen design values.
+// grays close to paper, so tracks, rules and washes use darker levels than an emissive display.
 // kSub: labels and secondary text. kDim: offline values and the secondary bar fill.
 // kRule: rules, dashes and offline bar fills. kWash: alarm background. kTint: chart 80-100% band.
 constexpr uint8_t kInk = 0x00, kSub = 0x20, kDim = 0x40, kRule = 0x60, kTrack = 0x90,

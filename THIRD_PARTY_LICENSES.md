@@ -242,7 +242,7 @@ For ESP Component Registry entries, `Registry license` is the API value for the 
 - SPDX: `OFL-1.1`
 - Generated subsets: weight 700; printable ASCII at 24–56 px, digits and `%:-. ` at 104–184 px
 - Copyright/notice: `firmware/targets/waveshare_epaper_397/main/fonts/Archivo-OFL.txt`
-- Read Pico subsets: weight 700; printable ASCII at 28–56 px, digits and `%:-. ` at 58–230 px; notice: `firmware/targets/mindreset_read_pico/main/fonts/Archivo-OFL.txt`
+- Read Pico subsets: weight 700; printable ASCII at 16–56 px, digits and `%:-. ` at 58–236 px; notice: `firmware/targets/mindreset_read_pico/main/fonts/Archivo-OFL.txt`
 
 ## JetBrains Mono generated font subsets
 
@@ -250,7 +250,7 @@ For ESP Component Registry entries, `Registry license` is the API value for the 
 - SPDX: `OFL-1.1`
 - Generated subsets: weight 500; printable ASCII at 15–20 px
 - Copyright/notice: `firmware/targets/waveshare_epaper_397/main/fonts/JetBrainsMono-OFL.txt`
-- Read Pico subsets: weight 500; printable ASCII at 16–26 px; notice: `firmware/targets/mindreset_read_pico/main/fonts/JetBrainsMono-OFL.txt`
+- Read Pico subsets: printable ASCII at weight 500, 18 px, and weight 700, 16–30 px; notice: `firmware/targets/mindreset_read_pico/main/fonts/JetBrainsMono-OFL.txt`
 
 ## Read Pico board components
 
