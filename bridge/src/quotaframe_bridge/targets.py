@@ -139,6 +139,12 @@ TARGETS: tuple[TargetDefinition, ...] = (
         release_stem="mindreset-read-pico",
         image_chip_id=9,
         ota_partition_bytes=4 * 1024 * 1024,
+        web_flash=WebFlashDefinition(
+            name="MindReset Read Pico",
+            description="684 × 1216 十六灰阶墨水屏 · 触屏与按键操作",
+            chip_family="ESP32-S3",
+            asset="assets/devices/mindreset_read_pico.png",
+        ),
     ),
 )
 
