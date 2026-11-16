@@ -20,6 +20,7 @@ idf_component_register(
         usage_ota
         usage_rtc
         cube32esp__xpowerslib
+    PRIV_REQUIRES esp_driver_spi
 )
 
 target_compile_features(${COMPONENT_LIB} PUBLIC cxx_std_17)

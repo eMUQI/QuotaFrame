@@ -26,8 +26,8 @@ namespace usage_panel::amoled {
  */
 class DisplayUi {
 public:
-    /** Initializes display/touch/LVGL and builds the complete object tree. */
-    bool begin(ScreenRotation initial_rotation);
+    /** Initializes display and touch, then enables output after the first LVGL frame. */
+    bool begin(ScreenRotation initial_rotation, uint8_t initial_brightness);
 
     void request_page(Page page) { requested_page_.store(page, std::memory_order_relaxed); }
     bool apply_settings(const DisplaySettings& settings, bool visible, bool save_error = false, bool modified = false);
@@ -125,7 +125,8 @@ private:
                        bool has_data, uint32_t epoch, bool fresh);
     void update_screensaver_usage(const ScreensaverUsageView& usage);
 
-    bool set_transition_brightness(int32_t percent);
+    bool set_panel_brightness(int32_t percent);
+    static void first_refresh_ready(lv_event_t* event);
     static void transition_brightness(void* target, int32_t percent);
     static void transition_refresh_ready(lv_event_t* event);
 

@@ -6,10 +6,14 @@
 #include "bsp/esp-bsp.h"
 #include "bsp/display.h"
 #include "bsp/touch.h"
+#include "driver/spi_master.h"
 #include "display_transport.hpp"
 #include "performance_probe.hpp"
 #include "usage_fonts/usage_fonts.h"
 #include "esp_heap_caps.h"
+#include "esp_lcd_co5300.h"
+#include "esp_lcd_io_spi.h"
+#include "esp_lcd_panel_ops.h"
 #include "esp_log.h"
 #include "esp_lv_adapter.h"
 #include "esp_timer.h"
@@ -132,6 +136,75 @@ static_assert(SAVER_INK_TOP + SAVER_INK_BOTTOM == SCREEN_H);
 static_assert(SAVER_CLOCK_Y + SAVER_CLOCK_H < SAVER_DATE_Y);
 static_assert(SAVER_DATE_Y + SAVER_DATE_H <= SAVER_USAGE_Y);
 
+// The CO5300 QSPI write opcode precedes the register address by two bytes.
+constexpr int co5300_write_command(uint8_t address)
+{
+    return (0x02 << 24) | (address << 8);
+}
+
+// CO5300 resets with display output disabled. Leave it disabled until LVGL
+// has written the first frame. See ../UPSTREAM.md for the register table source.
+constexpr co5300_lcd_init_cmd_t PANEL_INIT_COMMANDS[] = {
+    {0x11, nullptr, 0, 600},
+    {0xFE, (const uint8_t[]){0x20}, 1, 0},
+    {0x19, (const uint8_t[]){0x10}, 1, 0},
+    {0x1C, (const uint8_t[]){0xA0}, 1, 0},
+    {0xFE, (const uint8_t[]){0x00}, 1, 0},
+    {0xC4, (const uint8_t[]){0x80}, 1, 0},
+    {0x3A, (const uint8_t[]){0x55}, 1, 0},
+    {0x35, (const uint8_t[]){0x00}, 1, 0},
+    {0x53, (const uint8_t[]){0x20}, 1, 0},
+    {0x51, (const uint8_t[]){0x00}, 1, 0},
+    {0x63, (const uint8_t[]){0xFF}, 1, 0},
+    {0x2A, (const uint8_t[]){0x00, 0x00, 0x01, 0xDF}, 4, 0},
+    {0x2B, (const uint8_t[]){0x00, 0x00, 0x01, 0xDF}, 4, 0},
+    {0x36, (const uint8_t[]){0xA0}, 1, 0},
+};
+
+void init_panel(int transfer_bytes, esp_lcd_panel_handle_t* panel,
+                esp_lcd_panel_io_handle_t* panel_io)
+{
+    spi_bus_config_t bus_config{};
+    bus_config.sclk_io_num = BSP_LCD_PCLK;
+    bus_config.data0_io_num = BSP_LCD_DATA0;
+    bus_config.data1_io_num = BSP_LCD_DATA1;
+    bus_config.data2_io_num = BSP_LCD_DATA2;
+    bus_config.data3_io_num = BSP_LCD_DATA3;
+    bus_config.max_transfer_sz = transfer_bytes;
+    ESP_ERROR_CHECK(spi_bus_initialize(BSP_LCD_SPI_NUM, &bus_config, SPI_DMA_CH_AUTO));
+
+    esp_lcd_panel_io_spi_config_t io_config{};
+    io_config.cs_gpio_num = BSP_LCD_CS;
+    io_config.dc_gpio_num = GPIO_NUM_NC;
+    io_config.pclk_hz = 40 * 1000 * 1000;
+    io_config.trans_queue_depth = 3;
+    io_config.lcd_cmd_bits = 32;
+    io_config.lcd_param_bits = 8;
+    io_config.flags.quad_mode = true;
+    ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi(BSP_LCD_SPI_NUM, &io_config, panel_io));
+
+    co5300_vendor_config_t vendor_config{};
+    vendor_config.init_cmds = PANEL_INIT_COMMANDS;
+    vendor_config.init_cmds_size = sizeof(PANEL_INIT_COMMANDS) / sizeof(PANEL_INIT_COMMANDS[0]);
+    vendor_config.flags.use_qspi_interface = 1;
+    esp_lcd_panel_dev_config_t panel_config{};
+    panel_config.reset_gpio_num = BSP_LCD_RST;
+    panel_config.rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB;
+    panel_config.bits_per_pixel = BSP_LCD_BITS_PER_PIXEL;
+    panel_config.vendor_config = &vendor_config;
+    ESP_ERROR_CHECK(esp_lcd_new_panel_co5300(*panel_io, &panel_config, panel));
+    ESP_ERROR_CHECK(esp_lcd_panel_reset(*panel));
+    ESP_ERROR_CHECK(esp_lcd_panel_init(*panel));
+}
+
+esp_err_t set_panel_rotation(esp_lcd_panel_io_handle_t panel_io, ScreenRotation rotation)
+{
+    constexpr uint8_t madctl[] = {0x00, 0x60, 0xC0, 0xA0};
+    const auto index = static_cast<uint8_t>(rotation);
+    if (index >= sizeof(madctl)) return ESP_ERR_INVALID_ARG;
+    return esp_lcd_panel_io_tx_param(panel_io, co5300_write_command(0x36), &madctl[index], 1);
+}
+
 void rounder_event(lv_event_t* event)
 {
     auto* area = static_cast<lv_area_t*>(lv_event_get_param(event));
@@ -180,18 +253,10 @@ lv_display_t* start_display(
         return nullptr;
     }
 
-    const bsp_display_config_t panel_config{
-        .max_transfer_sz = static_cast<int>(plan.transfer_bytes),
-    };
     esp_lcd_panel_handle_t panel = nullptr;
     esp_lcd_panel_io_handle_t panel_io = nullptr;
-    error = bsp_display_new(&panel_config, &panel, &panel_io);
-    if (error != ESP_OK) {
-        ESP_LOGE(TAG, "display initialization failed: %s", esp_err_to_name(error));
-        return nullptr;
-    }
-    error = bsp_display_rotation_set(
-        static_cast<bsp_display_rotation_t>(initial_rotation));
+    init_panel(static_cast<int>(plan.transfer_bytes), &panel, &panel_io);
+    error = set_panel_rotation(panel_io, initial_rotation);
     if (error != ESP_OK) {
         ESP_LOGE(TAG, "initial display rotation failed: %s",
                  esp_err_to_name(error));
@@ -261,27 +326,9 @@ lv_display_t* start_display(
         *ret_input_device = input_device;
     }
 
-    error = bsp_display_brightness_init();
-    if (error != ESP_OK) {
-        ESP_LOGE(TAG, "display brightness initialization failed: %s",
-                 esp_err_to_name(error));
-        return nullptr;
-    }
-    error = bsp_display_brightness_set(
-        CONFIG_WS_USAGE_PANEL_DISPLAY_BRIGHTNESS_PERCENT);
-    if (error != ESP_OK) {
-        ESP_LOGE(TAG, "display brightness setting failed: %s",
-                 esp_err_to_name(error));
-        return nullptr;
-    }
 #if CONFIG_WS_USAGE_PANEL_PERFORMANCE_PROBE
     if (!attach_performance_probe(display, panel_io)) return nullptr;
 #endif
-    error = esp_lv_adapter_start();
-    if (error != ESP_OK) {
-        ESP_LOGE(TAG, "LVGL task start failed: %s", esp_err_to_name(error));
-        return nullptr;
-    }
     return display;
 }
 
@@ -460,7 +507,7 @@ void build_large_metric(lv_obj_t* parent, const char* name, int y,
 }
 }  // namespace
 
-bool DisplayUi::begin(ScreenRotation initial_rotation)
+bool DisplayUi::begin(ScreenRotation initial_rotation, uint8_t initial_brightness)
 {
     display_ = start_display(
         initial_rotation, &touch_, &input_device_, &panel_io_);
@@ -469,7 +516,7 @@ bool DisplayUi::begin(ScreenRotation initial_rotation)
         return false;
     }
     rotation_ = initial_rotation;
-    brightness_percent_ = CONFIG_WS_USAGE_PANEL_DISPLAY_BRIGHTNESS_PERCENT;
+    brightness_percent_ = initial_brightness;
     DisplayLock lock;
     if (!lock) {
         ESP_LOGE(TAG, "failed to acquire display lock");
@@ -500,9 +547,16 @@ bool DisplayUi::begin(ScreenRotation initial_rotation)
     build_pairing_overlay(screen);
     build_ota_overlay(screen);
     show_page(Page::Overview, /*animate=*/false);
+    lv_obj_invalidate(screen);
+    lv_display_add_event_cb(display_, first_refresh_ready, LV_EVENT_REFR_READY, this);
     lv_display_add_event_cb(
         display_, transition_refresh_ready, LV_EVENT_REFR_READY, this);
 
+    const esp_err_t error = esp_lv_adapter_start();
+    if (error != ESP_OK) {
+        ESP_LOGE(TAG, "LVGL task start failed: %s", esp_err_to_name(error));
+        return false;
+    }
     return true;
 }
 
@@ -524,8 +578,7 @@ bool DisplayUi::set_rotation(ScreenRotation rotation)
 
     const auto previous_mapping = touch_mapping(rotation_);
     const auto mapping = touch_mapping(rotation);
-    const esp_err_t display_error = bsp_display_rotation_set(
-        static_cast<bsp_display_rotation_t>(rotation));
+    const esp_err_t display_error = set_panel_rotation(panel_io_, rotation);
     if (display_error != ESP_OK) {
         ESP_LOGE(TAG, "display rotation failed: %s",
                  esp_err_to_name(display_error));
@@ -534,8 +587,7 @@ bool DisplayUi::set_rotation(ScreenRotation rotation)
 
     const esp_err_t touch_error = apply_touch_mapping(touch_, mapping);
     if (touch_error != ESP_OK) {
-        const esp_err_t rollback_display_error = bsp_display_rotation_set(
-            static_cast<bsp_display_rotation_t>(rotation_));
+        const esp_err_t rollback_display_error = set_panel_rotation(panel_io_, rotation_);
         const esp_err_t rollback_touch_error =
             apply_touch_mapping(touch_, previous_mapping);
         ESP_LOGE(TAG, "touch rotation failed: %s",
@@ -1083,7 +1135,7 @@ bool DisplayUi::apply_settings(const DisplaySettings& settings, bool visible, bo
     const bool brightness_changed = brightness_percent_ != settings.brightness;
     if (brightness_changed) {
         lv_anim_delete(this, transition_brightness);
-        if (!transition_refresh_pending_ && !set_transition_brightness(settings.brightness))
+        if (!transition_refresh_pending_ && !set_panel_brightness(settings.brightness))
             return false;
         brightness_percent_ = settings.brightness;
     }
@@ -1470,16 +1522,13 @@ void DisplayUi::update_provider(
         snapshot.has_valid_data && (!partial || snapshot.latest_week_present), epoch, fresh);
 }
 
-bool DisplayUi::set_transition_brightness(int32_t percent)
+bool DisplayUi::set_panel_brightness(int32_t percent)
 {
     const uint8_t level = static_cast<uint8_t>(percent * 255 / 100);
-    // CO5300 QSPI encodes brightness register 0x51 with opcode 0x02
-    // and an 8-bit address shift.
-    constexpr int brightness_command = (0x02 << 24) | (0x51 << 8);
     const esp_err_t error = esp_lcd_panel_io_tx_param(
-        panel_io_, brightness_command, &level, sizeof(level));
+        panel_io_, co5300_write_command(0x51), &level, sizeof(level));
     if (error != ESP_OK) {
-        ESP_LOGE(TAG, "transition brightness failed: %s", esp_err_to_name(error));
+        ESP_LOGE(TAG, "display brightness failed: %s", esp_err_to_name(error));
         return false;
     }
     return true;
@@ -1487,7 +1536,17 @@ bool DisplayUi::set_transition_brightness(int32_t percent)
 
 void DisplayUi::transition_brightness(void* target, int32_t percent)
 {
-    static_cast<DisplayUi*>(target)->set_transition_brightness(percent);
+    static_cast<DisplayUi*>(target)->set_panel_brightness(percent);
+}
+
+void DisplayUi::first_refresh_ready(lv_event_t* event)
+{
+    auto* ui = static_cast<DisplayUi*>(lv_event_get_user_data(event));
+    // SPI parameter commands drain queued pixel transfers before transmission.
+    // Keep display output disabled until the full overview is in panel RAM.
+    ESP_ERROR_CHECK(ui->set_panel_brightness(ui->brightness_percent_) ? ESP_OK : ESP_FAIL);
+    ESP_ERROR_CHECK(esp_lcd_panel_io_tx_param(ui->panel_io_, co5300_write_command(0x29), nullptr, 0));
+    lv_display_remove_event_cb_with_user_data(ui->display_, first_refresh_ready, ui);
 }
 
 void DisplayUi::transition_refresh_ready(lv_event_t* event)
@@ -1507,7 +1566,7 @@ void DisplayUi::transition_refresh_ready(lv_event_t* event)
     lv_anim_set_duration(&fade, 120);
     lv_anim_set_path_cb(&fade, lv_anim_path_ease_out);
     if (lv_anim_start(&fade) == nullptr) {
-        ui->set_transition_brightness(ui->brightness_percent_);
+        ui->set_panel_brightness(ui->brightness_percent_);
     }
 }
 
@@ -1532,7 +1591,7 @@ void DisplayUi::render(
     if (screensaver_visible != was_screensaver_visible) {
         // Cancel an active fade before concealing the next screensaver repaint.
         lv_anim_delete(this, transition_brightness);
-        transition_refresh_pending_ = set_transition_brightness(0);
+        transition_refresh_pending_ = set_panel_brightness(0);
     }
     input_enabled_.store(input_enabled && !has_passkey, std::memory_order_relaxed);
     ota_active_.store(ota.phase != OtaPhase::Idle, std::memory_order_relaxed);
