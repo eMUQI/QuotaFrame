@@ -195,18 +195,18 @@ extern "C" void app_main(void)
         ESP_LOGW(TAG, "AXP2101 telemetry unavailable; battery will be hidden");
     }
 
-    log_memory_checkpoint("before_lvgl", false);
-    ESP_ERROR_CHECK(ui.begin(initial_rotation) ? ESP_OK : ESP_FAIL);
-    log_memory_checkpoint("after_ui", true);
-    ESP_ERROR_CHECK(verify_lvgl_allocations_external()
-                        ? ESP_OK
-                        : ESP_ERR_INVALID_STATE);
-
     DisplaySettings saved_settings = load_display_settings({
         CONFIG_WS_USAGE_PANEL_DISPLAY_BRIGHTNESS_PERCENT,
         CONFIG_WS_USAGE_PANEL_SCREENSAVER_TIMEOUT_SECONDS});
     DisplaySettings settings = saved_settings;
     bool settings_open = false;
+
+    log_memory_checkpoint("before_lvgl", false);
+    ESP_ERROR_CHECK(ui.begin(initial_rotation, settings.brightness) ? ESP_OK : ESP_FAIL);
+    log_memory_checkpoint("after_ui", true);
+    ESP_ERROR_CHECK(verify_lvgl_allocations_external()
+                        ? ESP_OK
+                        : ESP_ERR_INVALID_STATE);
     ui.apply_settings(settings, false);
 
     ScreenRotation desired_rotation = initial_rotation;
