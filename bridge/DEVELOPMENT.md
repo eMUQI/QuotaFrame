@@ -87,11 +87,11 @@ quotaframe-bridge --name-prefix QF-WS-S3-A216-
 常用参数：
 
 ```text
---interval 60             Win-CodexBar 采集周期（秒）
+--interval 60             CodexBar 采集周期（秒）
 --publish-interval 30     向设备重发最新状态的周期（秒）
 --scan-timeout 10
 --connect-timeout 60
---source-timeout          一次采集的上限（秒）；默认按平台，Windows 15、macOS 90
+--source-timeout          每条 CLI 命令的超时（秒），Windows 默认 15，macOS 默认 90
 --ack-timeout 5
 --log-level INFO
 ```
@@ -104,16 +104,22 @@ BLE connected: device=Waveshare AMOLED 2.16 secure=true protocol=1 capabilities=
 
 自动重连通过相同校验后也会再次输出；未完成或校验失败的连接不会输出成功记录。
 
-`--source-timeout` 默认 Windows 15 秒、macOS 90 秒，显式参数优先。`--interval` 从上一次采集完成后计时；`--publish-interval` 独立重发最近快照。手工刷新仍需等待采集完成，新设备连接就绪后立即接收已有快照，无快照时等待首次采集。
+`--interval` 从上一次采集完成后计时，`--publish-interval` 独立重发最近快照。采集中收到的手工刷新请求将在本轮完成后执行。新设备连接就绪后立即接收已有快照，无快照时等待首次结果。
 
 ## 数据源接口
 
 Bridge 调用所在平台的 CodexBar 结构化接口。两个上游的 JSON 契约不兼容，因此有两个 source adapter：
 
 ```text
-Windows：codexbar-cli usage -p both --json
-macOS：  codexbar usage --provider both --format json
+Windows：codexbar-cli config providers --json
+         codexbar-cli usage -p codex --json
+         codexbar-cli usage -p claude --json
+macOS：  codexbar config providers --json
+         codexbar usage --provider codex --format json
+         codexbar usage --provider claude --format json
 ```
+
+Bridge 每轮读取启用列表，只查询已启用的来源。两路并发、各自计时，先收到的用量立即进入推送。查询失败时保留该来源上次有效的用量和原采样时间。Win-CodexBar 0.46.0 和 Bridge 固定下载的 1.2.12 通过 `config dump --format json` 提供 `enabled_providers`。macOS 需要支持 `config providers --json` 的 CLI。
 
 随后只保留两个 provider 的 primary/secondary 窗口百分比、重置时间和采样时间，转换成 `usage.v1` 后通过加密 BLE 发送。原始 stdout/stderr、身份、费用、计划和凭据不会写入 BLE 消息或正常日志。
 

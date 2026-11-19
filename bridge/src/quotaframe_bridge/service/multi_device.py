@@ -21,7 +21,7 @@ from quotaframe_bridge.protocol.messages import (
 from quotaframe_bridge.service.device_manager import ReconnectBackoff
 from quotaframe_bridge.service.state import UsageStateStore
 from quotaframe_bridge.service.time_sync import TimeSyncScheduler
-from quotaframe_bridge.sources.base import UsageSource
+from quotaframe_bridge.sources.base import ProgressiveUsageSource, UsageSource
 from quotaframe_bridge.sources.codexbar import CodexBarResolutionError
 from quotaframe_bridge.transports.base import (
     TransportCleanupError,
@@ -284,6 +284,7 @@ class DeviceSession:
                 self._force_time_sync = True
             snapshot = self._pending or snapshot
             revision = self._offered_revision
+            level = logging.INFO if self._delivered_revision == 0 else logging.DEBUG
             for usage in (snapshot.codex, snapshot.claude):
                 sequence = self._sequence.next()
                 sent_at = int(self._wall_now().timestamp())
@@ -293,6 +294,10 @@ class DeviceSession:
                     usage = ProviderUsage(usage.provider, SourceState.UNAVAILABLE, sent_at)
                 payload = encode_usage(usage, sequence, sent_at)
                 await self.transport.send_command(payload, "usage", sequence)
+                LOGGER.log(
+                    level, "%s usage ACK: provider=%s state=%s",
+                    self.label, usage.provider.value, usage.state.value,
+                )
             return revision
 
     def _schedule_time_sync(self) -> None:
@@ -392,8 +397,22 @@ class MultiDeviceBridgeService:
         level = logging.INFO if self._first_collection else logging.DEBUG
         LOGGER.log(level, "reading usage from CodexBar")
         started_at = self.monotonic()
+
+        def publish_provider(usage: ProviderUsage) -> None:
+            self.store.merge_collection(
+                {usage.provider: usage}, attempted_at=attempted_at, partial=True,
+            )
+            self.consecutive_failures = 0
+            self.resolution_error = None
+            self._offer_current()
+
         try:
-            collection = await self.source.collect(attempted_at=attempted_at)
+            if isinstance(self.source, ProgressiveUsageSource):
+                collection = await self.source.collect_progressively(
+                    attempted_at, on_update=publish_provider,
+                )
+            else:
+                collection = await self.source.collect(attempted_at=attempted_at)
             self.store.merge_collection(
                 collection,
                 attempted_at=attempted_at,

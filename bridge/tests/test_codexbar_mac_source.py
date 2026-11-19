@@ -34,8 +34,9 @@ from quotaframe_bridge.sources.codexbar_mac import (
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "codexbar_mac_both.json"
 FIXTURE = FIXTURE_PATH.read_text(encoding="utf-8")
 
-USAGE_ARGV = ("usage", "--provider", "both", "--format", "json")
-VERSION_STDOUT = "CodexBar 0.17.0\n"
+CONFIG_ARGV = ("config", "providers", "--json")
+VERSION_STDOUT = "CodexBar 0.60.3\n"
+BOTH_ENABLED = '[{"provider":"codex","enabled":true},{"provider":"claude","enabled":true}]'
 
 
 def hermetic_dialect(*installed: Path) -> CliDialect:
@@ -53,11 +54,13 @@ def hermetic_dialect(*installed: Path) -> CliDialect:
 
 
 def usage_runner(stdout: str, *, return_code: int = 0):
-    """Answer the identity probe, then hand `stdout` to the usage command."""
+    """Answer the CLI probes and return the configured usage response."""
 
     async def runner(argv: tuple[str, ...], timeout: float) -> tuple[int, str, str]:
         if argv[1] == "--version":
             return 0, VERSION_STDOUT, ""
+        if argv[1:] == CONFIG_ARGV:
+            return 0, BOTH_ENABLED, ""
         return return_code, stdout, ""
 
     return runner
@@ -308,13 +311,15 @@ class MacDiscoveryTests(unittest.TestCase):
 
 
 class MacCodexBarSourceTests(unittest.IsolatedAsyncioTestCase):
-    async def test_collect_executes_the_upstream_json_interface(self) -> None:
+    async def test_collect_skips_disabled_claude(self) -> None:
         seen: list[tuple[str, ...]] = []
 
         async def runner(argv: tuple[str, ...], timeout: float):
             seen.append(argv)
             if argv[1] == "--version":
                 return 0, VERSION_STDOUT, ""
+            if argv[1:] == CONFIG_ARGV:
+                return 0, '[{"provider":"codex","enabled":true},{"provider":"claude","enabled":false}]', ""
             return 0, FIXTURE, ""
 
         with tempfile.TemporaryDirectory() as directory:
@@ -328,10 +333,12 @@ class MacCodexBarSourceTests(unittest.IsolatedAsyncioTestCase):
             seen,
             [
                 (str(executable), "--version"),
-                (str(executable), *USAGE_ARGV),
+                (str(executable), *CONFIG_ARGV),
+                (str(executable), "usage", "--provider", "codex", "--format", "json"),
             ],
         )
         self.assertEqual(result[Provider.CODEX].state, SourceState.OK)
+        self.assertEqual(result[Provider.CLAUDE].state, SourceState.UNAVAILABLE)
 
     async def test_default_timeout_matches_the_upstream_cli_not_the_windows_one(
         self,
@@ -349,6 +356,8 @@ class MacCodexBarSourceTests(unittest.IsolatedAsyncioTestCase):
             timeouts.append(timeout)
             if argv[1] == "--version":
                 return 0, VERSION_STDOUT, ""
+            if argv[1:] == CONFIG_ARGV:
+                return 0, BOTH_ENABLED, ""
             return 0, FIXTURE, ""
 
         with tempfile.TemporaryDirectory() as directory:
@@ -367,6 +376,8 @@ class MacCodexBarSourceTests(unittest.IsolatedAsyncioTestCase):
             timeouts.append(timeout)
             if argv[1] == "--version":
                 return 0, VERSION_STDOUT, ""
+            if argv[1:] == CONFIG_ARGV:
+                return 0, BOTH_ENABLED, ""
             return 0, FIXTURE, ""
 
         with tempfile.TemporaryDirectory() as directory:
@@ -382,16 +393,22 @@ class MacCodexBarSourceTests(unittest.IsolatedAsyncioTestCase):
     async def test_partial_failure_exit_code_still_yields_usable_data(self) -> None:
         """Upstream exits non-zero when any single provider fetch fails."""
 
-        records = json.loads(FIXTURE)
-        records[1] = {"provider": "claude", "error": {"message": "auth required"}}
+        codex = json.loads(FIXTURE)[0]
+        claude = {"provider": "claude", "error": {"message": "auth required"}}
+
+        async def runner(argv: tuple[str, ...], timeout: float):
+            if argv[1] == "--version":
+                return 0, VERSION_STDOUT, ""
+            if argv[1:] == CONFIG_ARGV:
+                return 0, BOTH_ENABLED, ""
+            if argv[3] == "codex":
+                return 0, json.dumps([codex]), ""
+            return 1, json.dumps([claude]), ""
 
         with tempfile.TemporaryDirectory() as directory:
             executable = Path(directory).resolve() / "codexbar"
             executable.touch()
-            source = MacCodexBarSource(
-                executable,
-                runner=usage_runner(json.dumps(records), return_code=1),
-            )
+            source = MacCodexBarSource(executable, runner=runner)
 
             result = await source.collect(attempted_at=100)
 
@@ -421,6 +438,8 @@ class MacCodexBarSourceTests(unittest.IsolatedAsyncioTestCase):
         async def runner(argv: tuple[str, ...], timeout: float):
             if argv[1] == "--version":
                 return 0, VERSION_STDOUT, ""
+            if argv[1:] == CONFIG_ARGV:
+                return 0, BOTH_ENABLED, ""
             return 1, "", "token sk-ant-oat-secret for user@example.com"
 
         with tempfile.TemporaryDirectory() as directory:
