@@ -29,11 +29,16 @@ class UsageStateStore:
         collection: Mapping[Provider, ProviderUsage],
         *,
         attempted_at: int,
+        partial: bool = False,
     ) -> Mapping[Provider, ProviderUsage]:
+        """Merge a batch, preserving untouched providers during partial updates."""
+
         self.last_collection_attempt = attempted_at
         for provider in Provider:
             usage = collection.get(provider)
             if usage is None:
+                if partial and provider in self._providers:
+                    continue
                 usage = ProviderUsage(
                     provider=provider,
                     state=SourceState.UNAVAILABLE,

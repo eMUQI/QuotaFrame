@@ -78,6 +78,8 @@ Bridge 不在后台下载、自行替换或执行自己的安装包。
 
 ## macOS 采集排查
 
+Bridge 每轮读取 CodexBar 的来源开关，并独立同步已启用的 Codex 和 Claude。若 Bridge 报告 CLI 不兼容，请确认 `codexbar config providers --json` 能返回启用列表。
+
 采集缓慢时，先单独检查 Claude OAuth 数据源：
 
 ```bash

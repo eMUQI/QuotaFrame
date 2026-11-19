@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import tempfile
 import unittest
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest.mock import patch
 
 from quotaframe_bridge.domain.models import (
@@ -19,7 +21,8 @@ from quotaframe_bridge.service.multi_device import (
     MultiDeviceBridgeService,
     UsageSnapshot,
 )
-from quotaframe_bridge.sources.codexbar import CodexBarResolutionError
+from quotaframe_bridge.sources.codexbar import CodexBarResolutionError, WinCodexBarSource
+from quotaframe_bridge.sources.codexbar_mac import MacCodexBarSource
 from quotaframe_bridge.transports.base import TransportReset
 
 
@@ -714,6 +717,94 @@ class DeviceSessionTests(unittest.IsolatedAsyncioTestCase):
 
 
 class MultiDeviceBridgeServiceTests(unittest.IsolatedAsyncioTestCase):
+    async def test_provider_results_reach_panel_before_slow_peer(self) -> None:
+        for platform in ("windows", "macos"):
+            with self.subTest(platform=platform):
+                await self._check_provider_publication(platform)
+
+    async def _check_provider_publication(self, platform: str) -> None:
+        fixture = "codexbar_mac_both.json" if platform == "macos" else "codexbar_both.json"
+        source_type = MacCodexBarSource if platform == "macos" else WinCodexBarSource
+        records = {
+            record["provider"]: record
+            for record in json.loads(
+                (Path(__file__).parent / "fixtures" / fixture).read_text(encoding="utf-8")
+            )
+        }
+        transport = RecordingTransport()
+        slow_providers = ("claude", "codex", "claude")
+        slow_started = [asyncio.Event() for _ in slow_providers]
+        release = [asyncio.Event() for _ in slow_providers]
+        cycle = -1
+
+        async def cli(argv: tuple[str, ...], timeout: float) -> tuple[int, str, str]:
+            nonlocal cycle
+            if argv[1:] == ("--version",):
+                version = "CodexBar 0.60.3" if platform == "macos" else "codexbar 0.70.0"
+                return 0, version, ""
+            if argv[1:] == ("config", "providers", "--json"):
+                cycle += 1
+                return 0, json.dumps([
+                    {"provider": provider, "enabled": True} for provider in records
+                ]), ""
+            provider = argv[3]
+            if platform == "macos":
+                self.assertEqual(argv[1:], ("usage", "--provider", provider, "--format", "json"))
+                self.assertEqual(timeout, 90.0)
+            else:
+                self.assertEqual(argv[1:], ("usage", "-p", provider, "--json"))
+                self.assertEqual(timeout, 15.0)
+            if provider == slow_providers[cycle]:
+                slow_started[cycle].set()
+                await release[cycle].wait()
+                if cycle == 0:
+                    raise TimeoutError
+            record = records[provider]
+            used_percent = "usedPercent" if platform == "macos" else "used_percent"
+            record["usage"]["primary"][used_percent] = 10 * (cycle + 1)
+            return 0, json.dumps([record]), ""
+
+        async def wait_for_panel(codex: str, claude: str | None) -> None:
+            async with asyncio.timeout(2):
+                while True:
+                    usage = [json.loads(payload) for payload, command, _ in transport.sent
+                             if command == "usage"]
+                    state = {row["provider"]: row.get("short_used_pct") for row in usage}
+                    if state == {"codex": codex, "claude": claude}:
+                        return
+                    await asyncio.sleep(0.001)
+
+        with tempfile.TemporaryDirectory() as directory:
+            executable = Path(directory) / "codexbar-cli.exe"
+            executable.touch()
+            service = MultiDeviceBridgeService(
+                source_type(executable, runner=cli),
+                (DeviceSession("Panel", transport),),
+                interval=3600,
+                publish_interval=3600,
+            )
+            runner = asyncio.create_task(service.run())
+            try:
+                await asyncio.wait_for(slow_started[0].wait(), 2)
+                await wait_for_panel("10", None)
+                self.assertEqual(service.collection_count, 0)
+                service.request_collection()
+                release[0].set()
+
+                await asyncio.wait_for(slow_started[1].wait(), 2)
+                await wait_for_panel("10", "20")
+                release[1].set()
+                await wait_for_panel("20", "20")
+
+                service.request_collection()
+                await asyncio.wait_for(slow_started[2].wait(), 2)
+                await wait_for_panel("30", "20")
+                release[2].set()
+                await wait_for_panel("30", "30")
+            finally:
+                runner.cancel()
+                await asyncio.gather(runner, return_exceptions=True)
+
     async def test_added_session_receives_cached_usage_without_waiting_for_tick(self):
         source = RecordingSource()
         service = MultiDeviceBridgeService(

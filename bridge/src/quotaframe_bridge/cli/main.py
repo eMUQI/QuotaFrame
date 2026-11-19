@@ -98,7 +98,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--source-timeout",
         type=float,
         help=(
-            "seconds one CodexBar collection may take; the default depends on "
+            "seconds one CodexBar command may take; the default depends on "
             "the platform's CLI (Windows 15, macOS 90)"
         ),
     )

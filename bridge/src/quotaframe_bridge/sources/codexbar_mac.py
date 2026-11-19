@@ -9,9 +9,8 @@ Contract confirmed against upstream source, not only `docs/cli.md`:
 - `usage --format json` prints provider payloads as a JSON **array**
   (`CLIUsageCommand.printJSON` receives `[ProviderPayload]`). The single-object
   sample in `docs/cli.md` is a simplification, so a bare object is accepted too.
-- `--provider both` asks upstream for its primary providers. The parser remains
-  limited to this project's supported providers, Codex and Claude, and ignores
-  any unrelated provider records rather than widening the protocol surface.
+- Each usage command selects one provider. The parser supports Codex and
+  Claude and ignores unrelated provider records.
 - `RateWindow` carries `usedPercent`, `windowMinutes`, `resetsAt`, and
   `isSyntheticPlaceholder`; the last one marks a lane the provider never
   actually reported (Claude web can report a phantom 0% session window when the
@@ -19,8 +18,8 @@ Contract confirmed against upstream source, not only `docs/cli.md`:
 - `usedPercent` is deliberately not clamped upstream: over-quota lanes can
   exceed 100. The panel is a display, so it clamps instead of rejecting.
 - Dates are encoded with `JSONEncoder.dateEncodingStrategy = .iso8601`.
-- The command exits non-zero when *any* provider fetch fails while still
-  printing the full document, so the exit code alone cannot condemn the CLI.
+- The CLI can return a JSON document with a nonzero exit code. Inspect the
+  requested provider's payload before treating that exit as a failure.
 
 Only the same allowlist as the Windows adapter crosses this boundary: two
 window percentages, their reset timestamps, and the sample time. `identity`,
@@ -45,6 +44,7 @@ from quotaframe_bridge.domain.models import (
     SourceState,
     UsageWindow,
 )
+from quotaframe_bridge.sources.base import UsageUpdate
 from quotaframe_bridge.sources.codexbar import (
     CliDialect,
     CodexBarResolver,
@@ -60,10 +60,8 @@ from quotaframe_bridge.sources.codexbar import (
 APPLICATION_HELPER = ("Contents", "Helpers", "CodexBarCLI")
 INSTALL_HINT = "install CodexBar and its CLI, or pass --codexbar-cli"
 
-# Upstream performs live web fetches and browser cookie imports rather than
-# reading local state, so collection can take tens of seconds on a healthy
-# account. Keep a substantially larger timeout than the local-state Windows
-# adapter without allowing a wedged fetch to stall collection indefinitely.
+# Live web fetches and browser-cookie imports can take tens of seconds for
+# a single provider on a configured account.
 MACOS_USAGE_TIMEOUT = 90.0
 
 _PATH_CANDIDATE_NAMES = ("codexbar", "CodexBarCLI")
@@ -185,7 +183,7 @@ MACOS_DIALECT = CliDialect(
     install_hint=INSTALL_HINT,
     candidate_names=_PATH_CANDIDATE_NAMES,
     installed_paths=installed_paths,
-    usage_argv=("usage", "--provider", "both", "--format", "json"),
+    usage_argv=lambda provider: ("usage", "--provider", provider.value, "--format", "json"),
     identity_pattern=_CODEXBAR_VERSION,
     parse=parse_codexbar_mac_json,
     reports_provider_failure_in_exit_code=True,
@@ -218,3 +216,8 @@ class MacCodexBarSource:
         self, attempted_at: int | None = None
     ) -> dict[Provider, ProviderUsage]:
         return await self._resolver.collect(attempted_at)
+
+    async def collect_progressively(
+        self, attempted_at: int | None, *, on_update: UsageUpdate,
+    ) -> dict[Provider, ProviderUsage]:
+        return await self._resolver.collect(attempted_at, on_update=on_update)

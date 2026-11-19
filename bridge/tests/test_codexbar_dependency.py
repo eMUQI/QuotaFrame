@@ -59,8 +59,16 @@ class DependencySourceTests(unittest.IsolatedAsyncioTestCase):
             env = {"LOCALAPPDATA": directory}
             target = dependency.cli_path(env)
             states = []
+            usage_queries = []
             async def runner(argv, timeout):
-                return (0, "codexbar 1.2.12", "") if argv[1] == "--version" else (0, "[]", "")
+                if argv[1:] == ("--version",):
+                    return 0, "codexbar 1.2.12", ""
+                if argv[1:] == ("config", "providers", "--json"):
+                    return 2, "", "unrecognized subcommand"
+                if argv[1:] == ("config", "dump", "--format", "json"):
+                    return 0, '{"enabled_providers":["codex","gemini"]}', ""
+                usage_queries.append(argv[1:])
+                return 0, "[]", ""
             def install(_env):
                 target.parent.mkdir(parents=True)
                 target.write_bytes(payload)
@@ -76,6 +84,7 @@ class DependencySourceTests(unittest.IsolatedAsyncioTestCase):
                 await source.collect(200)
                 download.assert_called_once_with(env)
                 self.assertEqual(states, ["downloading", "ready"])
+                self.assertEqual(usage_queries, [("usage", "-p", "codex", "--json")] * 2)
 
     async def test_explicit_configuration_and_usage_failures_never_download(self):
         for mode in ("explicit", "configured", "capability"):

@@ -23,6 +23,9 @@ from quotaframe_bridge.sources.codexbar import (
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "codexbar_both.json"
 FIXTURE = FIXTURE_PATH.read_text(encoding="utf-8")
+CONFIG_ARGV = ("config", "providers", "--json")
+CODEX_ONLY = '[{"provider":"codex","enabled":true},{"provider":"claude","enabled":false}]'
+CODEX_ARGV = ("usage", "-p", "codex", "--json")
 
 
 class CodexBarParserTests(unittest.TestCase):
@@ -234,7 +237,9 @@ class WinCodexBarSourceTests(unittest.IsolatedAsyncioTestCase):
                 argv: tuple[str, ...], timeout: float
             ) -> tuple[int, str, str]:
                 if argv[1] == "--version":
-                    return 0, "codexbar 0.46.0\n", ""
+                    return 0, "codexbar 0.70.0\n", ""
+                if argv[1:] == CONFIG_ARGV:
+                    return 0, CODEX_ONLY, ""
                 return 0, FIXTURE, ""
 
             source = WinCodexBarSource(
@@ -247,7 +252,7 @@ class WinCodexBarSourceTests(unittest.IsolatedAsyncioTestCase):
 
             self.assertEqual(result[Provider.CODEX].state, SourceState.OK)
 
-    async def test_collect_executes_current_json_interface(self) -> None:
+    async def test_collect_queries_only_enabled_providers_and_rereads_config(self) -> None:
         seen: list[tuple[str, ...]] = []
 
         async def runner(
@@ -256,7 +261,10 @@ class WinCodexBarSourceTests(unittest.IsolatedAsyncioTestCase):
             seen.append(argv)
             self.assertEqual(timeout, 7.5)
             if argv[1] == "--version":
-                return 0, "codexbar 0.46.0\n", ""
+                return 0, "codexbar 0.70.0\n", ""
+            if argv[1:] == CONFIG_ARGV:
+                config = CODEX_ONLY if len(seen) == 2 else CODEX_ONLY.replace("true", "false")
+                return 0, config, ""
             return 0, FIXTURE, ""
 
         with tempfile.TemporaryDirectory() as directory:
@@ -269,22 +277,29 @@ class WinCodexBarSourceTests(unittest.IsolatedAsyncioTestCase):
             )
 
             result = await source.collect(attempted_at=1_785_398_400)
+            disabled = await source.collect(attempted_at=1_785_398_460)
 
         self.assertEqual(
             seen,
             [
                 (str(executable), "--version"),
-                (str(executable), "usage", "-p", "both", "--json"),
+                (str(executable), *CONFIG_ARGV),
+                (str(executable), *CODEX_ARGV),
+                (str(executable), *CONFIG_ARGV),
             ],
         )
         self.assertEqual(result[Provider.CODEX].state, SourceState.OK)
+        self.assertEqual(result[Provider.CLAUDE].state, SourceState.UNAVAILABLE)
+        self.assertTrue(all(usage.state is SourceState.UNAVAILABLE for usage in disabled.values()))
 
     async def test_process_failure_does_not_expose_stderr(self) -> None:
         async def runner(
             argv: tuple[str, ...], timeout: float
         ) -> tuple[int, str, str]:
             if argv[1] == "--version":
-                return 0, "codexbar 0.46.0\n", ""
+                return 0, "codexbar 0.70.0\n", ""
+            if argv[1:] == CONFIG_ARGV:
+                return 0, CODEX_ONLY, ""
             return 2, "", "secret token and account@example.com"
 
         with tempfile.TemporaryDirectory() as directory:
@@ -340,7 +355,9 @@ class CodexBarResolverTests(unittest.IsolatedAsyncioTestCase):
                 if argv[0] == str(desktop):
                     return 0, "CodexBar desktop 1.2.3\n", "desktop secret"
                 if argv[1] == "--version":
-                    return 0, "codexbar 0.46.0\n", ""
+                    return 0, "codexbar 0.70.0\n", ""
+                if argv[1:] == CONFIG_ARGV:
+                    return 0, CODEX_ONLY, ""
                 return 0, FIXTURE, ""
 
             resolver = self._resolver_type()(
@@ -358,7 +375,8 @@ class CodexBarResolverTests(unittest.IsolatedAsyncioTestCase):
                 [
                     (str(desktop), "--version"),
                     (str(cli), "--version"),
-                    (str(cli), "usage", "-p", "both", "--json"),
+                    (str(cli), *CONFIG_ARGV),
+                    (str(cli), *CODEX_ARGV),
                 ],
             )
 
@@ -385,7 +403,9 @@ class CodexBarResolverTests(unittest.IsolatedAsyncioTestCase):
             ) -> tuple[int, str, str]:
                 nonlocal usage_calls
                 if argv[1] == "--version":
-                    return 0, "codexbar 0.46.0\n", ""
+                    return 0, "codexbar 0.70.0\n", ""
+                if argv[1:] == CONFIG_ARGV:
+                    return 0, CODEX_ONLY, ""
                 usage_calls += 1
                 return (0, "{", "") if usage_calls == 1 else (0, FIXTURE, "")
 
@@ -398,7 +418,7 @@ class CodexBarResolverTests(unittest.IsolatedAsyncioTestCase):
 
             result = await resolver.collect(attempted_at=100)
 
-            self.assertEqual(result[Provider.CLAUDE].state, SourceState.OK)
+            self.assertEqual(result[Provider.CODEX].state, SourceState.OK)
             self.assertEqual(usage_calls, 2)
 
     async def test_successful_candidate_is_cached_after_identity_validation(self) -> None:
@@ -412,7 +432,9 @@ class CodexBarResolverTests(unittest.IsolatedAsyncioTestCase):
             ) -> tuple[int, str, str]:
                 calls.append(argv)
                 if argv[1] == "--version":
-                    return 0, "codexbar 0.46.0\n", ""
+                    return 0, "codexbar 0.70.0\n", ""
+                if argv[1:] == CONFIG_ARGV:
+                    return 0, CODEX_ONLY, ""
                 return 0, FIXTURE, ""
 
             resolver = self._resolver_type()(executable, runner=runner)
@@ -424,8 +446,10 @@ class CodexBarResolverTests(unittest.IsolatedAsyncioTestCase):
                 calls,
                 [
                     (str(executable), "--version"),
-                    (str(executable), "usage", "-p", "both", "--json"),
-                    (str(executable), "usage", "-p", "both", "--json"),
+                    (str(executable), *CONFIG_ARGV),
+                    (str(executable), *CODEX_ARGV),
+                    (str(executable), *CONFIG_ARGV),
+                    (str(executable), *CODEX_ARGV),
                 ],
             )
 
@@ -452,7 +476,9 @@ class CodexBarResolverTests(unittest.IsolatedAsyncioTestCase):
             ) -> tuple[int, str, str]:
                 nonlocal first_usage_calls
                 if argv[1] == "--version":
-                    return 0, "codexbar 0.46.0\n", ""
+                    return 0, "codexbar 0.70.0\n", ""
+                if argv[1:] == CONFIG_ARGV:
+                    return 0, CODEX_ONLY, ""
                 if argv[0] == str(first):
                     first_usage_calls += 1
                     if first_usage_calls > 1:
@@ -511,7 +537,9 @@ class CodexBarResolverTests(unittest.IsolatedAsyncioTestCase):
                 argv: tuple[str, ...], timeout: float
             ) -> tuple[int, str, str]:
                 if argv[1] == "--version":
-                    return 0, "codexbar 0.46.0\n", ""
+                    return 0, "codexbar 0.70.0\n", ""
+                if argv[1:] == CONFIG_ARGV:
+                    return 0, CODEX_ONLY, ""
                 return 0, "{", ""
 
             resolver = self._resolver_type()(

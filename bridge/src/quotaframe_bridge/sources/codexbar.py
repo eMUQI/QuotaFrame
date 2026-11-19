@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-import math
+import logging
 import os
 import re
 import shutil
@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from quotaframe_bridge.config import read_codexbar_cli
+from quotaframe_bridge.sources.base import UsageUpdate
 from quotaframe_bridge.sources.codexbar_dependency import (
     DependencyDownloadError, install_cli, verified_cli,
 )
@@ -41,6 +42,7 @@ from quotaframe_bridge.domain.models import (
 ProcessRunner = Callable[[tuple[str, ...], float], Awaitable[tuple[int, str, str]]]
 UsageParser = Callable[[str, int], "dict[Provider, ProviderUsage]"]
 InstalledPaths = Callable[[Mapping[str, str]], "Sequence[Path]"]
+LOGGER = logging.getLogger(__name__)
 
 
 class SourceDataError(ValueError):
@@ -70,18 +72,11 @@ class CliDialect:
     install_hint: str
     candidate_names: tuple[str, ...]
     installed_paths: InstalledPaths
-    usage_argv: tuple[str, ...]
+    usage_argv: Callable[[Provider], tuple[str, ...]]
     identity_pattern: re.Pattern[str]
     parse: UsageParser
-    # Upstream CodexBar exits non-zero when any single provider fetch fails,
-    # while still printing a complete document; Win-CodexBar does not, so there
-    # a non-zero exit stays fatal.
+    # The macOS CLI can return structured usage with a nonzero exit code.
     reports_provider_failure_in_exit_code: bool = False
-    # A dialect owns its timeout because the two CLIs have different execution
-    # models: Win-CodexBar reads local state, while upstream CodexBar performs
-    # live web fetches and browser-cookie imports and can legitimately take tens
-    # of seconds. Using the Windows-sized timeout for macOS would misclassify a
-    # healthy CLI as a capability failure.
     default_timeout: float = 15.0
 
 
@@ -198,7 +193,7 @@ def _timestamp(value: Any, field: str) -> int:
 def _percent(value: Any, field: str) -> int:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise SourceDataError(f"{field} must be numeric")
-    if not math.isfinite(float(value)) or not 0 <= float(value) <= 100:
+    if not 0 <= value <= 100:
         raise SourceDataError(f"{field} must be finite and between 0 and 100")
     try:
         return int(Decimal(str(value)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
@@ -243,7 +238,7 @@ def parse_codexbar_json(
     for index, item in enumerate(decoded):
         raw = _mapping(item, f"result[{index}]")
         provider_name = raw.get("provider")
-        if provider_name not in supported:
+        if not isinstance(provider_name, str) or provider_name not in supported:
             continue
         provider = supported[provider_name]
         if provider in records:
@@ -311,7 +306,7 @@ async def _run_process(
         await process.communicate()
         if isinstance(exc, asyncio.CancelledError):
             raise
-        raise RuntimeError("Win-CodexBar timed out") from None
+        raise TimeoutError("CodexBar command timed out") from None
     return (
         int(process.returncode or 0),
         stdout.decode("utf-8", errors="strict"),
@@ -358,7 +353,7 @@ WINDOWS_DIALECT = CliDialect(
     install_hint="install Win-CodexBar or pass --codexbar-cli",
     candidate_names=_PATH_CANDIDATE_NAMES,
     installed_paths=_windows_installed_paths,
-    usage_argv=("usage", "-p", "both", "--json"),
+    usage_argv=lambda provider: ("usage", "-p", provider.value, "--json"),
     identity_pattern=_CODEXBAR_VERSION,
     parse=parse_codexbar_json,
 )
@@ -391,27 +386,89 @@ class CodexBarResolver:
         return await self._runner((str(executable), *arguments), self._timeout)
 
     async def _usage(
-        self, executable: Path, attempted_at: int
-    ) -> dict[Provider, ProviderUsage]:
+        self, executable: Path, provider: Provider, attempted_at: int,
+    ) -> ProviderUsage:
         return_code, stdout, _stderr = await self._run(
             executable,
-            self._dialect.usage_argv,
+            self._dialect.usage_argv(provider),
         )
         if return_code != 0 and not self._dialect.reports_provider_failure_in_exit_code:
             raise RuntimeError("CodexBar usage command failed")
         try:
-            parsed = self._dialect.parse(stdout, attempted_at)
+            usage = self._dialect.parse(stdout, attempted_at)[provider]
         except SourceDataError:
             if return_code != 0:
                 raise RuntimeError("CodexBar usage command failed") from None
             raise
-        if return_code != 0 and not any(
-            usage.state is not SourceState.UNAVAILABLE for usage in parsed.values()
-        ):
-            # Every provider failed, so this candidate proved nothing about its
-            # own health; let the resolver keep probing instead of caching it.
+        if return_code != 0 and usage.state is SourceState.UNAVAILABLE:
             raise RuntimeError("CodexBar usage command failed")
-        return parsed
+        return usage
+
+    async def _enabled_providers(self, executable: Path) -> set[Provider]:
+        async def read_json(*args: str) -> Any:
+            code, stdout, _stderr = await self._run(executable, ("config", *args))
+            if code != 0:
+                raise SourceDataError("CodexBar config command failed")
+            try:
+                return json.loads(stdout)
+            except ValueError:
+                raise SourceDataError("CodexBar config output is not valid JSON") from None
+
+        try:
+            rows = await read_json("providers", "--json")
+            if isinstance(rows, list):
+                statuses = {
+                    row.get("provider"): row["enabled"]
+                    for row in rows
+                    if isinstance(row, dict) and isinstance(row.get("provider"), str)
+                    and isinstance(row.get("enabled"), bool)
+                }
+                if all(provider.value in statuses for provider in Provider):
+                    return {provider for provider in Provider if statuses[provider.value]}
+            raise SourceDataError("CodexBar config lacks provider status rows")
+        except _PROBE_ERRORS:
+            if self._dialect.platform != "win32":
+                raise
+
+        # Win-CodexBar v1.2.12 and older CLI builds expose this list through
+        # config dump. Retain only the enabled state of supported providers.
+        settings = _mapping(await read_json("dump", "--format", "json"), "config")
+        enabled = settings.get("enabled_providers")
+        if not isinstance(enabled, list) or not all(isinstance(name, str) for name in enabled):
+            raise SourceDataError("Win-CodexBar config lacks a valid enabled provider list")
+        return {provider for provider in Provider if provider.value in enabled}
+
+    async def _collect_candidate(
+        self, executable: Path, attempted_at: int, on_update: UsageUpdate | None,
+    ) -> dict[Provider, ProviderUsage]:
+        enabled = await self._enabled_providers(executable)
+        results: dict[Provider, ProviderUsage] = {}
+
+        async def query(provider: Provider) -> ProviderUsage | None:
+            try:
+                return await self._usage(executable, provider, attempted_at)
+            except _PROBE_ERRORS as exc:
+                LOGGER.debug("%s %s query failed: %s", self._dialect.product, provider.value, type(exc).__name__)
+                return None
+
+        async with asyncio.TaskGroup() as group:
+            queries = [
+                group.create_task(query(provider)) for provider in Provider if provider in enabled
+            ]
+            for index, completed in enumerate(asyncio.as_completed(queries), start=1):
+                usage = await completed
+                if usage is None:
+                    continue
+                results[usage.provider] = usage
+                if on_update is not None and index < len(queries):
+                    on_update(usage)
+
+        if enabled and not results:
+            raise SourceDataError("CodexBar returned no supported usage results")
+        return {
+            provider: results.get(provider) or _unavailable(provider, attempted_at)
+            for provider in Provider
+        }
 
     async def _has_cli_identity(self, executable: Path) -> bool:
         try:
@@ -427,13 +484,13 @@ class CodexBarResolver:
         )
 
     async def collect(
-        self, attempted_at: int | None = None
+        self, attempted_at: int | None = None, *, on_update: UsageUpdate | None = None,
     ) -> dict[Provider, ProviderUsage]:
         now = int(time.time()) if attempted_at is None else attempted_at
 
         if self._selected is not None:
             try:
-                return await self._usage(self._selected, now)
+                return await self._collect_candidate(self._selected, now, on_update)
             except _PROBE_ERRORS:
                 self._selected = None
 
@@ -453,7 +510,7 @@ class CodexBarResolver:
                 continue
             identity_valid = True
             try:
-                result = await self._usage(candidate, now)
+                result = await self._collect_candidate(candidate, now, on_update)
             except _PROBE_ERRORS:
                 continue
             self._selected = candidate
@@ -493,8 +550,13 @@ class WinCodexBarSource:
     async def collect(
         self, attempted_at: int | None = None
     ) -> dict[Provider, ProviderUsage]:
+        return await self.collect_progressively(attempted_at)
+
+    async def collect_progressively(
+        self, attempted_at: int | None, *, on_update: UsageUpdate | None = None,
+    ) -> dict[Provider, ProviderUsage]:
         try:
-            return await self._resolver.collect(attempted_at)
+            return await self._resolver.collect(attempted_at, on_update=on_update)
         except CodexBarResolutionError as exc:
             if (
                 exc.category == "capability"
@@ -515,4 +577,4 @@ class WinCodexBarSource:
             raise
         if self._dependency_status is not None:
             self._dependency_status("ready")
-        return await self._resolver.collect(attempted_at)
+        return await self._resolver.collect(attempted_at, on_update=on_update)
