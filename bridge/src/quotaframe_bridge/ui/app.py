@@ -58,6 +58,7 @@ import webbrowser
 from collections.abc import Callable
 
 from quotaframe_bridge.transports.base import TransportCleanupError
+from quotaframe_bridge.domain.models import DisplayPair
 from quotaframe_bridge.i18n import tr
 from quotaframe_bridge.cli.instance_lock import (
     BridgeAlreadyRunningError,
@@ -145,6 +146,7 @@ class TrayApplication(FirmwareUpdateActions):
             on_repair=self._repair,
             on_firmware_update=self._firmware_update,
             on_forget_device=self._forget_device,
+            on_display_pair=self._set_display_pair,
             on_toggle_autostart=self._toggle_autostart,
             on_open_log=self._open_log,
             on_quit=self._quit,
@@ -228,6 +230,24 @@ class TrayApplication(FirmwareUpdateActions):
                 LOGGER.exception("manual device adoption failed")
 
         future.add_done_callback(report_failure)
+
+    def _set_display_pair(self, address: str, pair: DisplayPair) -> None:
+        loop, graph = self._loop, self._graph
+        if loop is None or graph is None or self._stopping:
+            return
+        device = graph.get(address)
+        if device is None:
+            return
+
+        def save() -> None:
+            try:
+                graph.set_display_pair(address, pair, expected=device)
+            except (OSError, RuntimeError):
+                LOGGER.exception("display combination could not be saved")
+                message = tr("display_pair_save_failed", name=device.name)
+                self._prompt.call_soon(lambda: self._controller.notify(tr("display_pair"), message))
+
+        loop.call_soon_threadsafe(save)
 
     def _repair(self, address: str) -> None:
         label = address

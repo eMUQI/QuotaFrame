@@ -83,6 +83,7 @@ Folder Push total/size、manifest.size、status.protocol、ACK.n保留各自JSON
 | time.sync.v1 | 本地日历同步 |
 | screen.toggle.v1 | 设备本地屏保切换 |
 | screen.page.v1 | 设备本地上一页/下一页，不要求提供page |
+| display.pair.v1 | 接收 Gemini 用量和双服务显示组合 |
 | ota.folder.v1 | 应用OTA；必须有firmware_project、target、fw、ota |
 
 不要求第三方使用Buddy，但必须满足同一线上契约。
@@ -100,7 +101,7 @@ Folder Push total/size、manifest.size、status.protocol、ACK.n保留各自JSON
 
 | 参数 | 规则 |
 | --- | --- |
-| provider | codex或claude，独立保存 |
+| provider | codex、claude，或设备通告 display.pair.v1 时的 gemini。各服务独立保存 |
 | state | ok / partial / unavailable |
 | sampled_at、sent_at | 必需uint32十进制字符串，分别为数据源采样/尝试时间与Bridge编码时间，UTC Unix秒 |
 | short_used_pct、week_used_pct | 条件必需，0..100十进制字符串，表示已使用百分比 |
@@ -121,13 +122,21 @@ ACK表示校验并接受到可处理状态，不等待慢速屏幕刷新。重�
 | time_sync | year 2024..2099、month 1..12、合法day、weekday 0..6（周日0）且与日期一致、hour 0..23、minute/second 0..59、utc_offset_min -840..840；均为规范十进制字符串 | 同步本地日历，设备负责本地计时 |
 | screen_page | previous="1"表示上一页，previous="0"表示下一页 | 设备决定页面集合、顺序和循环边界；无变化也可接受成功 |
 | screen_toggle | 无其他参数 | 切换设备自己的屏保/主视图 |
+| display_pair | pair="codex_claude"、"codex_gemini" 或 "claude_gemini" | 选择两个显示位置的数据源 |
 
 ```json
 {"cmd":"screen_page","v":"1","seq":"45","previous":"1"}
 {"ack":"screen_page","n":45,"ok":true}
 ```
 
-Bridge不要求page等于overview/codex/claude；可选page只展示，不驱动能力判断。没有对应能力则不发送。按键/手势在本地处理，屏幕操作不为离线设备排队，ACK丢失后不自动重放。OTA忙时按设备处理器规则返回ota_busy，status及ota_abort仍可用。
+相对翻页和屏保切换只发送给通告相应能力的设备。设备在本地处理按键和手势，Bridge 不为离线设备排队相对操作，也不在 ACK 丢失后重放相对操作。OTA 忙时返回 ota_busy，status 及 ota_abort 仍可用。可选 page 只用于展示。
+
+带 display.pair.v1 的设备启动时采用 codex_claude。Bridge 按设备保存组合，重连后重新发送。display_pair 可重复提交同一组合，用于恢复配置。切换组合只改变显示位置对应的服务，各服务的缓存按 provider 保留。
+
+```json
+{"cmd":"display_pair","v":"1","seq":"46","pair":"codex_gemini"}
+{"ack":"display_pair","n":46,"ok":true}
+```
 
 ## 6. 错误与远程解绑
 

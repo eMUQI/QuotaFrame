@@ -4,11 +4,14 @@ import asyncio
 import json
 import tempfile
 import unittest
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
 from quotaframe_bridge.domain.models import (
+    DISPLAY_PAIR_CAPABILITY,
+    DisplayPair,
     Provider,
     ProviderUsage,
     SourceState,
@@ -152,6 +155,68 @@ class RecordingSource:
 
 
 class DeviceSessionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_display_pair_upgrade_hint_requires_a_live_known_firmware(self) -> None:
+        transport = RecordingTransport()
+        old_firmware = replace(
+            transport.device_status,
+            firmware_project="quotaframe",
+            target="waveshare_amoled_216",
+        )
+        transport.device_status = old_firmware
+        session = DeviceSession("Panel", transport)
+        self.assertFalse(session.display_pair_requires_firmware)
+        runner = asyncio.create_task(session.run())
+        try:
+            await asyncio.wait_for(session.wait_delivered(session.offer(snapshot(100))), 1)
+            self.assertTrue(session.display_pair_requires_firmware)
+
+            for status in (
+                replace(old_firmware, capabilities=frozenset({DISPLAY_PAIR_CAPABILITY})),
+                replace(old_firmware, firmware_project="custom"),
+                replace(old_firmware, target="unknown"),
+            ):
+                transport.device_status = status
+                self.assertFalse(session.display_pair_requires_firmware)
+
+            transport.device_status = old_firmware
+            transport.connected = False
+            self.assertFalse(session.display_pair_requires_firmware)
+        finally:
+            runner.cancel()
+            await asyncio.gather(runner, return_exceptions=True)
+
+    async def test_display_pairs_and_gemini_are_routed_per_device(self) -> None:
+        capability = frozenset({DISPLAY_PAIR_CAPABILITY})
+        old = RecordingTransport()
+        first = RecordingTransport(capabilities=capability)
+        second = RecordingTransport(capabilities=capability)
+        sessions = (
+            DeviceSession("Legacy", old, display_pair=DisplayPair.CODEX_GEMINI),
+            DeviceSession("First", first, display_pair=DisplayPair.CLAUDE_GEMINI),
+            DeviceSession("Second", second),
+        )
+        sample = snapshot(100)
+        runners = [asyncio.create_task(session.run()) for session in sessions]
+        try:
+            revisions = [session.offer(sample) for session in sessions]
+            await asyncio.wait_for(asyncio.gather(*(
+                session.wait_delivered(revision) for session, revision in zip(sessions, revisions)
+            )), 1)
+            def messages(transport):
+                return [json.loads(data) for data, _, _ in transport.sent]
+
+            self.assertEqual([entry["provider"] for entry in messages(old)], ["codex", "claude"])
+            first_messages = messages(first)
+            self.assertEqual([entry["provider"] for entry in first_messages[:-1]], ["codex", "claude", "gemini"])
+            self.assertEqual(first_messages[-1]["pair"], "claude_gemini")
+            second_messages = messages(second)
+            self.assertEqual([entry["provider"] for entry in second_messages[:-1]], ["codex", "claude"])
+            self.assertEqual(second_messages[-1]["pair"], "codex_claude")
+        finally:
+            for runner in runners:
+                runner.cancel()
+            await asyncio.gather(*runners, return_exceptions=True)
+
     async def test_clock_rollback_preserves_cache_and_publishes_both_providers(self):
         from quotaframe_bridge.service.state import UsageStateStore
 

@@ -11,6 +11,27 @@ class Provider(str, Enum):
 
     CODEX = "codex"
     CLAUDE = "claude"
+    GEMINI = "gemini"
+
+
+BASE_PROVIDERS = (Provider.CODEX, Provider.CLAUDE)
+DISPLAY_PAIR_CAPABILITY = "display.pair.v1"
+
+
+class DisplayPair(str, Enum):
+    """An ordered pair of visible provider slots."""
+
+    CODEX_CLAUDE = "codex_claude"
+    CODEX_GEMINI = "codex_gemini"
+    CLAUDE_GEMINI = "claude_gemini"
+
+    @property
+    def label(self) -> str:
+        return " + ".join(provider.title() for provider in self.value.split("_"))
+
+    @property
+    def needs_gemini(self) -> bool:
+        return self is not DisplayPair.CODEX_CLAUDE
 
 
 class SourceState(str, Enum):

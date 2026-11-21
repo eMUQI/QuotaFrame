@@ -11,11 +11,11 @@ Page next_page(Page page)
     }
 }
 
-const char* page_name(Page page)
+const char* page_name(Page page, DisplayPair pair)
 {
     switch (page) {
-    case Page::Codex: return "codex";
-    case Page::Claude: return "claude";
+    case Page::Codex: return provider_name(display_provider(pair, 0));
+    case Page::Claude: return provider_name(display_provider(pair, 1));
     default: return "overview";
     }
 }

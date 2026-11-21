@@ -81,12 +81,14 @@ public:
     }
 
     struct MetricWidgets {
+        lv_obj_t* label = nullptr;
         lv_obj_t* value = nullptr;
         lv_obj_t* reset = nullptr;
         lv_obj_t* bar = nullptr;
     };
 
     struct ProviderWidgets {
+        lv_obj_t* title = nullptr;
         bool compact = false;
         lv_obj_t* panel = nullptr;
         lv_obj_t* status = nullptr;
@@ -170,6 +172,7 @@ private:
     lv_obj_t* battery_group_ = nullptr;
     lv_obj_t* charge_symbol_ = nullptr;
     lv_obj_t* battery_segments_[4]{};
+    DisplayPair rendered_pair_ = DisplayPair::CodexClaude;
     lv_obj_t* overview_panel_ = nullptr;
     ProviderWidgets overview_[2]{};
     ProviderWidgets provider_pages_[2]{};

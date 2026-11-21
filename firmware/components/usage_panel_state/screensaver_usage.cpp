@@ -1,16 +1,10 @@
 #include "usage_panel_state/screensaver_usage.hpp"
 
-#include <initializer_list>
-
 namespace usage_panel {
 namespace {
 constexpr uint8_t WARN_PERCENT = 80;
 constexpr uint8_t BAD_PERCENT  = 95;
 
-size_t row_index(Provider provider)
-{
-    return provider == Provider::Codex ? 0 : 1;
-}
 }  // namespace
 
 bool ScreensaverUsageRow::operator==(const ScreensaverUsageRow& other) const
@@ -61,8 +55,8 @@ ScreensaverUsageRow make_screensaver_usage_row(const UsageModel& model, Provider
 ScreensaverUsageView make_screensaver_usage_view(const UsageModel& model, bool connected)
 {
     ScreensaverUsageView view{};
-    for (Provider provider : {Provider::Codex, Provider::Claude}) {
-        view.rows[row_index(provider)] = make_screensaver_usage_row(model, provider, connected);
+    for (size_t slot = 0; slot < 2; ++slot) {
+        view.rows[slot] = make_screensaver_usage_row(model, model.display_provider(slot), connected);
     }
 
     // Showing both labels keeps the shared columns aligned during an alert.

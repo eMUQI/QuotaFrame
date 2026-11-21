@@ -8,7 +8,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from quotaframe_bridge.i18n import tr
-from quotaframe_bridge.domain.models import Provider, ProviderUsage, SourceState
+from quotaframe_bridge.domain.models import BASE_PROVIDERS, DisplayPair, Provider, ProviderUsage, SourceState
 
 TOOLTIP_PREFIX = "QuotaFrame"
 TOOLTIP_LIMIT = 127
@@ -19,7 +19,7 @@ SEPARATOR = " · "
 NO_DEVICES_TEXT = tr("no_devices")
 NO_DEVICES_SCANNING_TEXT = tr("no_devices_scanning")
 
-_PROVIDER_LABELS = {Provider.CODEX: "Codex", Provider.CLAUDE: "Claude"}
+_PROVIDER_LABELS = {Provider.CODEX: "Codex", Provider.CLAUDE: "Claude", Provider.GEMINI: "Gemini"}
 
 
 class TrayState(enum.Enum):
@@ -42,6 +42,9 @@ class DeviceStatus:
     cleanup_failed: bool = False
     metadata_error: bool = False
     session: object = None
+    supports_display_pair: bool = False
+    display_pair: DisplayPair = DisplayPair.CODEX_CLAUDE
+    display_pair_requires_firmware: bool = False
 
     @property
     def connection_text(self) -> str:
@@ -166,8 +169,12 @@ def format_info_lines(status: PanelStatus) -> tuple[str, str]:
             else format_device_summary(status.devices)
         )
     )
+    visible = (*BASE_PROVIDERS, Provider.GEMINI) if any(
+        device.supports_display_pair and device.display_pair.needs_gemini
+        for device in status.devices
+    ) else BASE_PROVIDERS
     providers = SEPARATOR.join(
-        _provider_text(provider, status.providers.get(provider)) for provider in Provider
+        _provider_text(provider, status.providers.get(provider)) for provider in visible
     )
     if status.devices_unreadable:
         devices = tr("devices_unreadable")

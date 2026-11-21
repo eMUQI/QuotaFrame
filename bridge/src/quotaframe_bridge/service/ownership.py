@@ -11,12 +11,14 @@ from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from quotaframe_bridge.domain.models import DisplayPair
 from quotaframe_bridge.paths import data_directory
 from quotaframe_bridge.protocol.validation import validate_name, validate_identifier, unique_object
 
 LOGGER = logging.getLogger(__name__)
 
 DEVICES_FILENAME = "devices.json"
+DISPLAY_PAIRS_FILENAME = "device-display-pairs.json"
 SCHEMA_VERSION = 1
 
 
@@ -29,6 +31,7 @@ class OwnedDevice:
     added_at: int = 0
     name: str = ""
     firmware_project: str = ""
+    display_pair: DisplayPair = DisplayPair.CODEX_CLAUDE
 
 
 def normalize_address(address: object) -> str | None:
@@ -149,6 +152,24 @@ class OwnershipStore:
             self._write(tuple(updated if d is previous else d for d in self.devices))
         return updated
 
+    def set_display_pair(self, address: str, pair: DisplayPair) -> OwnedDevice | None:
+        """Save the selected pair without replacing the live device session."""
+        previous = next((device for device in self.devices if device.address == address), None)
+        if previous is None:
+            return None
+        updated = replace(previous, display_pair=pair)
+        if updated != previous:
+            devices = tuple(updated if device is previous else device for device in self.devices)
+            self._write_document(
+                self._path.with_name(DISPLAY_PAIRS_FILENAME),
+                {
+                    device.address: {"added_at": device.added_at, "pair": device.display_pair.value}
+                    for device in devices if device.display_pair.needs_gemini
+                },
+            )
+            self._devices = devices
+        return updated
+
     def remove(self, address: str) -> bool:
         """Forget one device, returning whether anything was removed."""
 
@@ -184,9 +205,39 @@ class OwnershipStore:
                     or type(document["schema_version"]) is not int or document["schema_version"] != 1
                     or not isinstance(document["devices"], list)):
                 raise ValueError("invalid document")
-            return tuple(self._parse_entries(document["devices"]))
+            devices = tuple(self._parse_entries(document["devices"]))
+            pairs = self._read_display_pairs()
+            return tuple(
+                replace(device, display_pair=pairs[device.address][1])
+                if device.address in pairs and pairs[device.address][0] == device.added_at
+                else device
+                for device in devices
+            )
         except (ValueError, TypeError, RecursionError):
             return self._unreadable("invalid device document")
+
+    def _read_display_pairs(self) -> dict[str, tuple[int, DisplayPair]]:
+        path = self._path.with_name(DISPLAY_PAIRS_FILENAME)
+        try:
+            preferences = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique_object)
+            if not isinstance(preferences, dict):
+                raise ValueError("invalid display combinations")
+        except FileNotFoundError:
+            return {}
+        except (OSError, ValueError, RecursionError):
+            LOGGER.warning("Device display combinations could not be read")
+            return {}
+
+        pairs = {}
+        for address, entry in preferences.items():
+            if (not isinstance(entry, dict) or type(entry.get("added_at")) is not int
+                    or not isinstance(entry.get("pair"), str)):
+                continue
+            try:
+                pairs[address] = (entry["added_at"], DisplayPair(entry["pair"]))
+            except ValueError:
+                continue
+        return pairs
 
     def _unreadable(self, reason: str) -> tuple[OwnedDevice, ...]:
         self.read_error = True
@@ -235,12 +286,16 @@ class OwnershipStore:
                 for device in devices
             ],
         }
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = self._path.with_name(f"{self._path.name}.tmp")
+        self._write_document(self._path, document)
+        self._devices = devices
+        self._loaded = True
+
+    @staticmethod
+    def _write_document(path: Path, document: dict) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_name(f"{path.name}.tmp")
         temporary.write_text(
             json.dumps(document, ensure_ascii=True, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
-        os.replace(temporary, self._path)
-        self._devices = devices
-        self._loaded = True
+        os.replace(temporary, path)

@@ -27,8 +27,8 @@ constexpr int kPanelTemperatureC = 25;
 constexpr int kTouchWidth = 684, kTouchHeight = 1216;
 uint32_t trend_now(const View &v) {
     return v.utc_epoch ? v.utc_epoch
-                       : std::max(v.model.estimated_epoch(Provider::Codex, v.now_ms),
-                                  v.model.estimated_epoch(Provider::Claude, v.now_ms));
+                       : std::max(v.model.estimated_epoch(v.model.display_provider(0), v.now_ms),
+                                  v.model.estimated_epoch(v.model.display_provider(1), v.now_ms));
 }
 uint32_t trend_end(const View &v) {
     return v.sd && v.trend_count ? v.trend[v.trend_count - 1].epoch : 0;
@@ -162,7 +162,7 @@ struct DisplayUi::ServiceSummary {
     char age[16];
 };
 DisplayUi::ServiceSummary DisplayUi::summarize(const View &v, int index) {
-    const Provider provider = index ? Provider::Claude : Provider::Codex;
+    const Provider provider = v.model.display_provider(index);
     const auto &s = v.model.snapshot(provider);
     const bool online = v.link.encrypted;
     const uint32_t epoch = v.model.estimated_epoch(provider, v.now_ms);
@@ -185,10 +185,10 @@ DisplayUi::ServiceSummary DisplayUi::summarize(const View &v, int index) {
             snprintf(out.reset, sizeof(out.reset), "RESETS %s", countdown);
         return out;
     };
-    const WindowSummary brief = window("SHORT", s.short_window, s.latest_short_present),
+    const WindowSummary brief = window(provider == Provider::Gemini ? "5 HOUR" : "SHORT", s.short_window, s.latest_short_present),
                         week = window("WEEK", s.week_window, s.latest_week_present);
     ServiceSummary r{};
-    r.name = index ? "CLAUDE" : "CODEX";
+    r.name = provider_label(provider);
     r.offline = !online;
     r.primary = brief.present ? brief : week;
     r.secondary = brief.present ? week : brief;
@@ -441,7 +441,7 @@ DisplayUi::TrendValue DisplayUi::trend_last(const View &v, int provider) const {
     if (!v.sd)
         return {};
     for (int i = v.trend_count - 1; i >= 0; --i) {
-        const int value = provider ? v.trend[i].claude : v.trend[i].codex;
+        const int value = v.trend[i].value(v.model.display_provider(provider));
         if (value <= 100 && v.trend[i].epoch <= now && now - v.trend[i].epoch <= 86400)
             return {v.trend[i].epoch, value};
     }
@@ -470,7 +470,7 @@ void DisplayUi::chart(const View &v, int x, int y, int w, int h) {
         const int count = v.sd ? v.trend_count : 0;
         for (int i = 0; i <= count; ++i) {
             const TrendValue point = i == count ? last
-                : TrendValue{v.trend[i].epoch, provider ? v.trend[i].claude : v.trend[i].codex};
+                : TrendValue{v.trend[i].epoch, v.trend[i].value(v.model.display_provider(provider))};
             // Draw the final valid stored value once, including its endpoint marker.
             if (i < count && point.epoch >= last.epoch)
                 continue;
@@ -522,7 +522,7 @@ void DisplayUi::home(const View &v) {
                 continue;
             const int lx = x + w + 20, ly = top + 12 + row++ * 100;
             trend_swatch(lx, ly + 5, provider);
-            text(lx + 30, ly, provider ? "CLAUDE" : "CODEX", 16, kSub, 2, 1);
+            text(lx + 30, ly, provider_label(v.model.display_provider(provider)), 16, kSub, 2, 1);
             snprintf(b, sizeof(b), "%d", last[provider].percent);
             value(lx, ly + 24 + digit_height(30, 0), b, 30, 16, kInk, -1);
             char age[20];
@@ -547,7 +547,7 @@ void DisplayUi::home(const View &v) {
             continue;
         const int ly = bottom + 12 + row++ * 44;
         trend_swatch(lx, ly + 8, provider);
-        text(lx + 32, ly + 4, provider ? "CLAUDE" : "CODEX", 16, kSub, 2, 1);
+        text(lx + 32, ly + 4, provider_label(v.model.display_provider(provider)), 16, kSub, 2, 1);
         snprintf(b, sizeof(b), "%d", last[provider].percent);
         value(lx + 112, ly + 4 + digit_height(24, 0), b, 24, 16, kInk, 0);
         char age[20];

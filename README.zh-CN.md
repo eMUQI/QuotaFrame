@@ -8,7 +8,7 @@
   <img src="docs/images/desktop-usage.webp" alt="Waveshare AMOLED 2.16 与 M5StickS3 在电脑旁显示 Claude 和 Codex 用量" width="400">
 </p>
 
-AI 编码额度，抬眼即见。QuotaFrame 将 Codex 和 Claude 的已用百分比与配额重置倒计时显示在独立桌面屏上。
+AI 编码额度，抬眼即见。QuotaFrame 在独立桌面屏上同屏显示两个服务的已用百分比与配额重置倒计时。默认显示 Codex + Claude，也可在 Bridge 为每台设备[选择包含 Gemini 的组合](bridge/README.md#gemini-与显示组合)。
 
 电脑端 QuotaFrame Bridge 通过蓝牙同步 CodexBar / Win-CodexBar 获取的用量，让配额状态常驻视野。
 

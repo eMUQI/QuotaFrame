@@ -11,6 +11,7 @@ import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from quotaframe_bridge.domain.models import DisplayPair
 from quotaframe_bridge.i18n import tr
 
 LOGGER = logging.getLogger(__name__)
@@ -111,6 +112,15 @@ class MacDialogs:
 
     def confirm_firmware(self, body: str) -> bool:
         return self._bindings.run_alert(tr("check_and_update"), body, (tr("ok"), tr("cancel"))) == 0
+
+    def choose_display_pair(self, device_name: str, current: DisplayPair) -> DisplayPair | None:
+        pairs = (current, *(pair for pair in DisplayPair if pair is not current))
+        selected = self._bindings.run_alert(
+            f"{device_name} · {tr('display_pair')}",
+            tr("display_pair_current", pair=current.label),
+            (*(pair.label for pair in pairs), tr("cancel")),
+        )
+        return pairs[selected] if 0 <= selected < len(pairs) else None
 
     def choose_device_to_forget(self, labels: tuple[str, ...]) -> int | None:
         """Ask which owned board to drop, returning its position or None.

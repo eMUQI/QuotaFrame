@@ -8,6 +8,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import Generic, TypeVar
 
+from quotaframe_bridge.domain.models import DisplayPair
+from quotaframe_bridge.sources.antigravity import collect_gemini
 from quotaframe_bridge.pairing.base import DevicePairer
 from quotaframe_bridge.service.adoption import (
     EMPTY_SCAN_LIMIT,
@@ -132,6 +134,15 @@ class TrayServiceGraph(Generic[PairerT]):
         self._rename()
         return device
 
+    def set_display_pair(self, address: str, pair: DisplayPair, *, expected) -> None:
+        device = self.get(address)
+        if device is None or device is not expected or not device.session.supports_display_pair:
+            return
+        updated = self.store.set_display_pair(device.address, pair)
+        if updated is not None:
+            device.owned = updated
+            self.service.set_display_pair(device.session, pair)
+
     async def forget(self, address: str, *, expected) -> bool:
         """Persist ownership removal before cancelling the update and closing the session."""
 
@@ -164,7 +175,9 @@ class TrayServiceGraph(Generic[PairerT]):
             ),
             on_status=lambda status: self._metadata(owned.address, manager, status),
         )
-        session = DeviceSession(display_name(owned, self.store.devices), manager)
+        session = DeviceSession(
+            display_name(owned, self.store.devices), manager, display_pair=owned.display_pair,
+        )
         device = TrayDevice(
             owned=owned,
             name=session.label,
@@ -216,7 +229,7 @@ def build_tray_graph(
 
     ownership = OwnershipStore() if store is None else store
     graph = TrayServiceGraph(
-        service=MultiDeviceBridgeService(usage_source_factory(), ()),
+        service=MultiDeviceBridgeService(usage_source_factory(), (), gemini_source=collect_gemini),
         store=ownership,
         pairer_factory=pairer_factory,
     )

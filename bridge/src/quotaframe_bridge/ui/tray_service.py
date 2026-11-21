@@ -21,6 +21,9 @@ def snapshot_tray_status(
             address=device.address,
             metadata_error=device.metadata_error,
             session=device.session,
+            supports_display_pair=device.session.supports_display_pair,
+            display_pair=device.session.display_pair,
+            display_pair_requires_firmware=device.session.display_pair_requires_firmware,
         )
         for device in graph.devices
     )

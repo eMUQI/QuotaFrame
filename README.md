@@ -8,7 +8,7 @@
   <img src="docs/images/desktop-usage.webp" alt="Waveshare AMOLED 2.16 and M5StickS3 displaying Claude and Codex usage beside a computer" width="400">
 </p>
 
-QuotaFrame displays Codex and Claude usage percentages and quota reset countdowns on a dedicated desktop display.
+QuotaFrame shows usage percentages and reset countdowns for two services on a dedicated desktop display. The default is Codex + Claude, and each compatible device can use a [combination with Gemini](bridge/README.md#gemini-与显示组合) instead.
 
 QuotaFrame Bridge runs on your computer and syncs usage from CodexBar / Win-CodexBar over Bluetooth, keeping your quota status in view.
 

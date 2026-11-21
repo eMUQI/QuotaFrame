@@ -107,13 +107,14 @@ esp_err_t BleService::start(AppEventQueue& queue, const BleServiceConfig& config
     enable_time_sync_ = config.enable_time_sync;
     enable_screen_toggle_ = config.enable_screen_toggle;
     enable_screen_page_ = config.enable_screen_page;
+    enable_display_pair_ = config.enable_display_pair;
     ota_commands_.bind(*ota_);
     const esp_app_desc_t* app = esp_app_get_description();
     if (!make_status_json(
             status_name_, false, "overview",
             app ? app->version : "unknown", target_, ota_->snapshot(),
             enable_time_sync_,
-            status_json_, sizeof(status_json_), enable_screen_toggle_, boot_valid_.load(), enable_screen_page_)) {
+            status_json_, sizeof(status_json_), enable_screen_toggle_, boot_valid_.load(), enable_screen_page_, enable_display_pair_)) {
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -139,6 +140,7 @@ esp_err_t BleService::start(AppEventQueue& queue, const BleServiceConfig& config
         {"time_sync", &BleService::time_sync_trampoline},
         {"screen_toggle", &BleService::screen_toggle_trampoline},
         {"screen_page", &BleService::screen_page_trampoline},
+        {"display_pair", &BleService::display_pair_trampoline},
         {"ota_abort", &BleService::ota_abort_trampoline},
         {"char_begin", &BleService::folder_push_trampoline},
         {"file", &BleService::folder_push_trampoline},
@@ -220,6 +222,8 @@ esp_desktop_buddy_command_extension_result_t BleService::handle_usage(
 {
     const auto parsed = parse_usage_command(request);
     if (!parsed.valid) return ack(false, parsed.sequence, "invalid_request");
+    if (parsed.update.provider == Provider::Gemini && !enable_display_pair_)
+        return ack(false, parsed.sequence, "unsupported");
     if (ota_commands_.busy()) return ack(false, parsed.sequence, "ota_busy");
     if (!queue_ || !queue_->send_usage(parsed.update)) {
         return ack(false, parsed.sequence, "queue_full");
@@ -254,7 +258,7 @@ esp_desktop_buddy_status_reply_t BleService::status()
             status_name_, state.encrypted, location,
             app ? app->version : "unknown", target_,
             ota_ ? ota_->snapshot() : OtaSnapshot{}, enable_time_sync_,
-            status_json_, sizeof(status_json_), enable_screen_toggle_, boot_valid_.load(), enable_screen_page_)) {
+            status_json_, sizeof(status_json_), enable_screen_toggle_, boot_valid_.load(), enable_screen_page_, enable_display_pair_)) {
         return esp_desktop_buddy_status_err(
             ESP_ERR_INVALID_ARG, "status_invalid");
     }
@@ -268,6 +272,29 @@ esp_desktop_buddy_command_extension_result_t BleService::ota_abort_trampoline(
     const esp_desktop_buddy_command_view_t* request)
 {
     return static_cast<BleService*>(context)->handle_ota_abort(request);
+}
+
+esp_desktop_buddy_command_extension_result_t BleService::display_pair_trampoline(
+    void* context, esp_desktop_buddy_t*, const esp_desktop_buddy_command_view_t* request)
+{
+    auto* self = static_cast<BleService*>(context);
+    uint32_t sequence = 0, version = 0;
+    const char* value = nullptr;
+    if (get_decimal_u32(request, "seq", sequence) != FieldResult::Valid)
+        return ack(false, 0, "invalid_request");
+    if (get_decimal_u32(request, "v", version) != FieldResult::Valid || version != 1 ||
+        esp_desktop_buddy_command_view_get_string(request, "pair", &value) != ESP_OK || !value)
+        return ack(false, sequence, "invalid_request");
+    DisplayPair pair;
+    if (strcmp(value, "codex_claude") == 0) pair = DisplayPair::CodexClaude;
+    else if (strcmp(value, "codex_gemini") == 0) pair = DisplayPair::CodexGemini;
+    else if (strcmp(value, "claude_gemini") == 0) pair = DisplayPair::ClaudeGemini;
+    else return ack(false, sequence, "invalid_request");
+    if (!self->enable_display_pair_) return ack(false, sequence, "unsupported");
+    if (self->ota_commands_.busy()) return ack(false, sequence, "ota_busy");
+    if (!self->queue_ || !self->queue_->send_display_pair(pair))
+        return ack(false, sequence, "queue_full");
+    return ack(true, sequence);
 }
 
 esp_desktop_buddy_command_extension_result_t BleService::screen_page_trampoline(

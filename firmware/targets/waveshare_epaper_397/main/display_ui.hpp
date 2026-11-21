@@ -1,6 +1,6 @@
 #pragma once
 #include "usage_ble/app_events.hpp"
-#include "usage_core/usage_state.hpp"
+#include "usage_core/usage_trend.hpp"
 #include "usage_ota/session.hpp"
 #include "usage_protocol/time_sync.hpp"
 #include <array>
@@ -9,11 +9,6 @@ namespace usage_panel::epaper {
 enum class Page { Home, Trend, Clock, Settings };
 struct Settings {
     uint8_t refresh = 1, idle = 2, rotation = 0;
-};
-struct TrendPoint {
-    uint32_t epoch;
-    uint8_t codex, claude;
-    uint8_t reserved[2]{};
 };
 struct View {
     UsageModel model;

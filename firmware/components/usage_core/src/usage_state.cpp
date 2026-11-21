@@ -4,7 +4,25 @@
 
 namespace usage_panel {
 namespace {
-size_t index_of(Provider provider) { return provider == Provider::Codex ? 0 : 1; }
+size_t index_of(Provider provider) { return static_cast<size_t>(provider); }
+}
+
+const char* provider_name(Provider provider)
+{
+    static constexpr const char* names[] = {"codex", "claude", "gemini"};
+    return names[index_of(provider)];
+}
+
+const char* provider_label(Provider provider)
+{
+    static constexpr const char* labels[] = {"CODEX", "CLAUDE", "GEMINI"};
+    return labels[index_of(provider)];
+}
+
+Provider display_provider(DisplayPair pair, size_t slot)
+{
+    if (slot == 0) return pair == DisplayPair::ClaudeGemini ? Provider::Claude : Provider::Codex;
+    return pair == DisplayPair::CodexClaude ? Provider::Claude : Provider::Gemini;
 }
 
 bool UsageModel::apply(const UsageUpdate& update, uint64_t monotonic_ms)
@@ -12,7 +30,7 @@ bool UsageModel::apply(const UsageUpdate& update, uint64_t monotonic_ms)
     const unsigned present = unsigned(update.short_window.present) + unsigned(update.week_window.present);
     // Keep the model defensive even though the BLE parser validates the same
     // invariants. Tests and future producers can construct UsageUpdate directly.
-    if ((update.short_window.present && update.short_window.used_percent > 100) ||
+    if (index_of(update.provider) >= 3 || (update.short_window.present && update.short_window.used_percent > 100) ||
         (update.week_window.present && update.week_window.used_percent > 100) ||
         (uint64_t(update.sent_at) + kMaxInverseClockSkewSeconds <
              update.sampled_at) ||

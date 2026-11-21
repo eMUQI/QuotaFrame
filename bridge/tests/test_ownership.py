@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import patch
 from pathlib import Path
 
+from quotaframe_bridge.domain.models import DisplayPair
 from quotaframe_bridge.service.ownership import (
     DEVICES_FILENAME,
     OwnedDevice,
@@ -57,6 +58,17 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(self.store().devices, (
             OwnedDevice(target=M5, address="AA:BB:CC:DD:EE:FF", added_at=1700000000, name="M5StickS3"),
         ))
+
+    def test_display_pair_is_persisted_per_address(self) -> None:
+        store = self.store()
+        first = store.add(M5, "AA:BB:CC:DD:EE:01", name=M5_LABEL)
+        second = store.add(M5, "AA:BB:CC:DD:EE:02", name=M5_LABEL)
+
+        store.set_display_pair(second.address, DisplayPair.CLAUDE_GEMINI)
+
+        reloaded = self.store().devices
+        self.assertEqual(reloaded[0], first)
+        self.assertEqual(reloaded[1].display_pair, DisplayPair.CLAUDE_GEMINI)
 
     def test_add_is_idempotent_on_the_same_address(self) -> None:
         store = self.store()

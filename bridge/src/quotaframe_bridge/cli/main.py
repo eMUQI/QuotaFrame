@@ -26,6 +26,7 @@ from quotaframe_bridge.service.multi_device import (
     DeviceSession,
     MultiDeviceBridgeService,
 )
+from quotaframe_bridge.sources.antigravity import collect_gemini
 from quotaframe_bridge.sources.mock import MockUsageSource
 from quotaframe_bridge.sources.selection import (
     UnsupportedPlatformError,
@@ -279,6 +280,7 @@ async def _run(args: argparse.Namespace) -> None:
             service = MultiDeviceBridgeService(
                 source, (), interval=args.interval,
                 publish_interval=args.publish_interval,
+                gemini_source=None if args.mock else collect_gemini,
             )
             graph = TrayServiceGraph(
                 service=service, store=store,

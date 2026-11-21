@@ -186,10 +186,10 @@ bool Navigator::update_alert(View &v) {
             dismissed_[i] = false;
             announced_[i] = false;
         }
-        const auto &s = v.model.snapshot(i ? Provider::Claude : Provider::Codex);
+        const auto &s = v.model.snapshot(v.model.display_provider(i));
         if (v.warning[i] == 2 && !dismissed_[i] && v.link.encrypted &&
             (best < 0 || s.short_window.used_percent >
-                             v.model.snapshot(best ? Provider::Claude : Provider::Codex)
+                             v.model.snapshot(v.model.display_provider(best))
                                  .short_window.used_percent))
             best = i;
     }

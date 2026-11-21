@@ -1,5 +1,5 @@
 #pragma once
-#include "usage_core/usage_state.hpp"
+#include "usage_core/usage_trend.hpp"
 #include <array>
 #include <cstdint>
 // The view and renderer depend only on usage_core so the screens can be rendered on a host.
@@ -21,11 +21,6 @@ struct Settings {
 constexpr int kSettingRows = 4;
 
 /** One 30-minute trend record as stored on the TF card; 255 marks a missing value. */
-struct TrendPoint {
-    uint32_t epoch;
-    uint8_t codex, claude;
-    uint8_t reserved[2]{};
-};
 constexpr int kTrendPoints = 48;
 constexpr uint32_t kTrendIntervalSeconds = 1800;
 constexpr uint32_t kMinTrendEpoch = 1700000000;

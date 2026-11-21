@@ -39,6 +39,7 @@ from pathlib import Path
 from typing import Any
 
 from quotaframe_bridge.domain.models import (
+    BASE_PROVIDERS,
     Provider,
     ProviderUsage,
     SourceState,
@@ -130,7 +131,7 @@ def parse_codexbar_mac_json(
     except (json.JSONDecodeError, UnicodeError) as exc:
         raise SourceDataError("CodexBar output is not valid JSON") from exc
 
-    supported = {provider.value: provider for provider in Provider}
+    supported = {provider.value: provider for provider in BASE_PROVIDERS}
     records: dict[Provider, dict[str, Any]] = {}
     for index, item in enumerate(_records(decoded)):
         raw = _mapping(item, f"result[{index}]")
@@ -143,7 +144,7 @@ def parse_codexbar_mac_json(
         records[provider] = raw
 
     output: dict[Provider, ProviderUsage] = {}
-    for provider in Provider:
+    for provider in BASE_PROVIDERS:
         raw = records.get(provider)
         if raw is None or raw.get("error") is not None:
             output[provider] = _unavailable(provider, attempted_at)

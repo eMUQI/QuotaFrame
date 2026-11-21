@@ -5,7 +5,6 @@
 #include <cstdio>
 namespace usage_panel::rlcd {
 namespace {
-constexpr const char *kNames[2] = {"CODEX", "CLAUDE"};
 constexpr const char *kDays[7] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
 // Content sits 8 px inside the 2 px bezel frame drawn 4 px from the panel edge.
 constexpr int kLeft = 14, kBezel = 4;
@@ -21,13 +20,15 @@ constexpr int kOverThreshold = 5;
 // Footer rule on pages with a footer line; the footer text follows 10 px below it.
 constexpr int kFooterRule = 252, kPortraitFooterRule = 340;
 
-Provider provider_of(int i) { return i ? Provider::Claude : Provider::Codex; }
+const char *service_name(const View &v, int slot) {
+    return provider_label(v.model.display_provider(slot));
+}
 
 int round_px(float v) { return static_cast<int>(std::lround(v)); }
 
 /** Short-window value shown on compact rows: the short window, else the week window. */
 int compact_percent(const View &v, int i) {
-    const auto &s = v.model.snapshot(provider_of(i));
+    const auto &s = v.model.snapshot(v.model.display_provider(i));
     if (short_present(s, v.link.encrypted))
         return s.short_window.used_percent;
     if (week_present(s, v.link.encrypted))
@@ -42,7 +43,7 @@ const char *empty_message(const View &v) {
 
 /** Offline or absent windows have no live reset countdown. */
 void reset_countdown(const View &v, int i, bool week, char *out, size_t size) {
-    const auto provider = provider_of(i);
+    const auto provider = v.model.display_provider(i);
     const auto &s = v.model.snapshot(provider);
     const bool present = week ? week_present(s, v.link.encrypted)
                               : short_present(s, v.link.encrypted);
@@ -59,12 +60,12 @@ void reset_countdown(const View &v, int i, bool week, char *out, size_t size) {
 
 /** Sample age label; false when the sample is under a minute old and needs no label. */
 bool age_label(const View &v, int i, char *out, size_t size) {
-    const auto &s = v.model.snapshot(provider_of(i));
+    const auto &s = v.model.snapshot(v.model.display_provider(i));
     if (!s.has_valid_data) {
         snprintf(out, size, "NO DATA");
         return true;
     }
-    const uint32_t epoch = v.model.estimated_epoch(provider_of(i), v.now_ms);
+    const uint32_t epoch = v.model.estimated_epoch(v.model.display_provider(i), v.now_ms);
     const uint32_t age = epoch > s.sampled_at ? epoch - s.sampled_at : 0;
     format_age(age, out, size);
     return age >= 60;
@@ -75,7 +76,7 @@ struct Paces {
     Pace short_pace, week_pace;
 };
 Paces paces(const View &v, int i, bool sp, bool wp) {
-    const auto p = provider_of(i);
+    const auto p = v.model.display_provider(i);
     const auto &s = v.model.snapshot(p);
     const bool enc = v.link.encrypted;
     const uint32_t epoch = v.model.estimated_epoch(p, v.now_ms);
@@ -227,10 +228,10 @@ int Screens::big_percent(int x, int top, int percent, int h, Ink ink) {
 }
 
 void Screens::home_row(const View &v, int i, int top) {
-    const auto &s = v.model.snapshot(provider_of(i));
+    const auto &s = v.model.snapshot(v.model.display_provider(i));
     const bool sp = short_present(s, v.link.encrypted), wp = week_present(s, v.link.encrypted);
     const int x0 = 148, x1 = c_.width() - kLeft;
-    c_.text(kLeft, top, kNames[i], 2);
+    c_.text(kLeft, top, service_name(v, i), 2);
     if (!sp && !wp) {
         c_.text(x0, top + 44, empty_message(v), 2);
         return;
@@ -271,10 +272,10 @@ void Screens::home_portrait(const View &v) {
     const int right = c_.width() - kLeft, w = right - kLeft;
     for (int i = 0; i < 2; ++i) {
         const int t = i ? 224 : 44;
-        const auto &s = v.model.snapshot(provider_of(i));
+        const auto &s = v.model.snapshot(v.model.display_provider(i));
         const bool sp = short_present(s, v.link.encrypted), wp = week_present(s, v.link.encrypted);
         char b[32];
-        c_.text(kLeft, t, kNames[i], 2);
+        c_.text(kLeft, t, service_name(v, i), 2);
         if (!sp && !wp) {
             c_.text(kLeft, t + 60, empty_message(v), 2);
             continue;
@@ -302,10 +303,10 @@ void Screens::home_portrait(const View &v) {
 }
 
 void Screens::focus(const View &v, int i) {
-    const auto &s = v.model.snapshot(provider_of(i));
+    const auto &s = v.model.snapshot(v.model.display_provider(i));
     const bool sp = short_present(s, v.link.encrypted), wp = week_present(s, v.link.encrypted);
     const int right = c_.width() - kLeft, column = 240;
-    header(v, kNames[i], static_cast<int>(v.page));
+    header(v, service_name(v, i), static_cast<int>(v.page));
     const Paces pace = paces(v, i, sp, wp);
     char b[32];
     // Short window: 80 px figure, reset countdown and pace in the right column, then its bar.
@@ -354,18 +355,18 @@ void Screens::focus(const View &v, int i) {
 
 void Screens::alert(const View &v) {
     const int i = v.alert;
-    const auto p = provider_of(i);
+    const auto p = v.model.display_provider(i);
     const auto &s = v.model.snapshot(p);
     const uint32_t epoch = v.model.estimated_epoch(p, v.now_ms);
     const int w = c_.width(), h = c_.height(), right = w - kLeft;
     const bool exhausted = s.short_window.used_percent >= 100;
     char b[32];
-    c_.text(kLeft, 14, kNames[i], 2, Ink::White);
+    c_.text(kLeft, 14, service_name(v, i), 2, Ink::White);
     const int other = compact_percent(v, 1 - i);
     if (other >= 0)
-        snprintf(b, sizeof(b), "%s %d%%", kNames[1 - i], other);
+        snprintf(b, sizeof(b), "%s %d%%", service_name(v, 1 - i), other);
     else
-        snprintf(b, sizeof(b), "%s --", kNames[1 - i]);
+        snprintf(b, sizeof(b), "%s --", service_name(v, 1 - i));
     c_.text_right(right, 14, b, 2, Ink::White);
     big_percent(kLeft, portrait_ ? 50 : 38, s.short_window.used_percent, 150, Ink::White);
     format_short_countdown(s.short_window, epoch, v.settings.seconds, b, sizeof(b));
@@ -391,8 +392,8 @@ void Screens::alert(const View &v) {
 void Screens::trend(const View &v) {
     char b[32];
     header(v, "24H", static_cast<int>(Page::Trend));
-    const uint32_t epoch = std::max(v.model.estimated_epoch(Provider::Codex, v.now_ms),
-                                    v.model.estimated_epoch(Provider::Claude, v.now_ms));
+    const uint32_t epoch = std::max(v.model.estimated_epoch(v.model.display_provider(0), v.now_ms),
+                                    v.model.estimated_epoch(v.model.display_provider(1), v.now_ms));
     // Match the sampling buckets while allowing the time axis to advance offline.
     const auto sample_age = [epoch](const TrendPoint &point) -> uint32_t {
         if (epoch < kMinTrendEpoch || point.epoch > epoch)
@@ -408,11 +409,11 @@ void Screens::trend(const View &v) {
         const int label = service ? 154 : 44, base = label + 22 + kHeight;
         int peak = -1;
         for (int k = 0; k < v.trend_count; ++k) {
-            const uint8_t value = service ? v.trend[k].claude : v.trend[k].codex;
+            const uint8_t value = v.trend[k].value(v.model.display_provider(service));
             if (value <= 100 && sample_age(v.trend[k]) < kTrendPoints)
                 peak = std::max<int>(peak, value);
         }
-        c_.text(x0, label, kNames[service], 2);
+        c_.text(x0, label, service_name(v, service), 2);
         if (peak >= 0)
             snprintf(b, sizeof(b), "MAX %d%%", peak);
         else
@@ -430,7 +431,7 @@ void Screens::trend(const View &v) {
         c_.dotted(x0, base - kHeight, span);
         c_.dotted(x0, base - kHeight / 2, span);
         for (int k = 0; k < v.trend_count; ++k) {
-            const uint8_t value = service ? v.trend[k].claude : v.trend[k].codex;
+            const uint8_t value = v.trend[k].value(v.model.display_provider(service));
             const uint32_t age = sample_age(v.trend[k]);
             if (value > 100 || age >= kTrendPoints)
                 continue;
@@ -498,7 +499,7 @@ void Screens::clock(const View &v) {
         const int bx = portrait_ ? kLeft : kLeft + i * 193;
         const int by = portrait_ ? lower + 10 + i * 60 : lower + 8;
         const int bw = portrait_ ? right - kLeft : 179;
-        c_.text(bx, by, kNames[i], 2);
+        c_.text(bx, by, service_name(v, i), 2);
         if (percent >= 0)
             snprintf(b, sizeof(b), "%d%%", percent);
         else

@@ -10,7 +10,7 @@ from typing import Any, Mapping
 from quotaframe_bridge.versioning import SemVer, VersionError
 
 from quotaframe_bridge.protocol.validation import validate_name, validate_identifier, validate_token
-from quotaframe_bridge.domain.models import Provider, ProviderUsage
+from quotaframe_bridge.domain.models import DisplayPair, Provider, ProviderUsage
 from quotaframe_bridge.protocol.ota_messages import OtaMessageError, OtaStatus, parse_ota_status
 
 PROTOCOL_VERSION = 1
@@ -169,6 +169,13 @@ def encode_usage(usage: ProviderUsage, seq: int, sent_at: int) -> bytes:
                 usage.week.reset_at, "week_reset_at"
             )
     return _json_line(payload)
+
+
+def encode_display_pair(pair: DisplayPair, seq: int) -> bytes:
+    """Select two display slots on a display.pair.v1 capable device."""
+
+    return _json_line({"cmd": "display_pair", "v": "1", "seq": _u32_text(seq, "seq"),
+                       "pair": pair.value})
 
 
 def encode_screen_toggle(seq: int) -> bytes:

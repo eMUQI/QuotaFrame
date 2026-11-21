@@ -61,7 +61,7 @@ void DisplayUi::provider_card(const UsageModel& model, Provider provider, int y,
     display.setTextSize(1);
     display.setTextColor(TFT_WHITE, TFT_BLACK);
     display.setCursor(12, y + 7);
-    display.print(provider == Provider::Codex ? "CODEX" : "CLAUDE");
+    display.print(provider_label(provider));
     display.setTextColor(state == DisplayState::Online ? TFT_GREEN : TFT_LIGHTGREY, TFT_BLACK);
     display.setCursor(58, y + 7); display.print(display_state_name(state));
     if (!data.has_valid_data) return;
@@ -70,11 +70,11 @@ void DisplayUi::provider_card(const UsageModel& model, Provider provider, int y,
     display.setCursor(12, y + 21);
     if (data.short_window.present &&
         (data.source_state != SourceState::Partial || data.latest_short_present)) {
-        display.printf("SHORT %u%%", data.short_window.used_percent);
+        display.printf("%s %u%%", provider == Provider::Gemini ? "5H" : "SHORT", data.short_window.used_percent);
         progress(12, y + 35, 108, data.short_window.used_percent,
                  fresh ? usage_color(data.short_window.used_percent) : TFT_DARKGREY);
     } else {
-        display.print("SHORT --");
+        display.print(provider == Provider::Gemini ? "5H --" : "SHORT --");
         progress(12, y + 35, 108, 0, TFT_DARKGREY);
     }
     display.setCursor(12, y + 49);
@@ -96,7 +96,7 @@ void DisplayUi::provider_page(const UsageModel& model, Provider provider,
     const auto state = model.display_state(provider, connected);
     auto& display = target();
     display.setTextSize(2); display.setCursor(8, 10);
-    display.print(provider == Provider::Codex ? "CODEX" : "CLAUDE");
+    display.print(provider_label(provider));
     display.setTextSize(1); display.setCursor(8, 34);
     display.print(display_state_name(state));
     if (!data.has_valid_data) return;
@@ -108,7 +108,7 @@ void DisplayUi::provider_page(const UsageModel& model, Provider provider,
         windows[0].present = data.latest_short_present;
         windows[1].present = data.latest_week_present;
     }
-    const char* labels[] = {"SHORT", "WEEK"};
+    const char* labels[] = {provider == Provider::Gemini ? "5 HOUR" : "SHORT", "WEEK"};
     for (int i = 0; i < 2; ++i) {
         const int y = 58 + i * 78;
         display.setTextSize(1); display.setCursor(8, y); display.print(labels[i]);
@@ -231,11 +231,11 @@ void DisplayUi::render(const UsageModel& model, Page page, bool connected,
         ota_page(ota, confirm_seconds, show_ota_error);
     } else if (page == Page::Overview) {
         display.setTextSize(2); display.setCursor(7, 5); display.print("USAGE");
-        provider_card(model, Provider::Codex, 35, connected, now_ms);
-        provider_card(model, Provider::Claude, 120, connected, now_ms);
+        provider_card(model, model.display_provider(0), 35, connected, now_ms);
+        provider_card(model, model.display_provider(1), 120, connected, now_ms);
         battery_icon(battery);
     } else {
-        provider_page(model, page == Page::Codex ? Provider::Codex : Provider::Claude,
+        provider_page(model, model.display_provider(page == Page::Codex ? 0 : 1),
                       connected, now_ms);
         battery_icon(battery);
     }

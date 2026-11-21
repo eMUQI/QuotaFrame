@@ -16,6 +16,7 @@ namespace usage_panel {
  */
 struct TimedRenderKey {
     Page page = Page::Overview;
+    DisplayPair display_pair = DisplayPair::CodexClaude;
     DisplayState first_state = DisplayState::NoData;
     DisplayState second_state = DisplayState::NoData;
     uint32_t ota_confirm_seconds = 0;

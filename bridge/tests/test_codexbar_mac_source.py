@@ -171,7 +171,7 @@ class MacParserTests(unittest.TestCase):
         result = parse_codexbar_mac_json(json.dumps(records), attempted_at=100)
 
         self.assertEqual(result[Provider.CODEX].state, SourceState.OK)
-        self.assertEqual(set(result), set(Provider))
+        self.assertEqual(set(result), {Provider.CODEX, Provider.CLAUDE})
 
     def test_duplicate_provider_is_rejected(self) -> None:
         records = json.loads(FIXTURE)

@@ -47,6 +47,14 @@ bool AppEventQueue::send_screen_page(bool previous)
     return queue_ && xQueueSend(queue_, &event, 0) == pdTRUE;
 }
 
+bool AppEventQueue::send_display_pair(DisplayPair pair)
+{
+    AppEvent event{};
+    event.type = AppEventType::DisplayPair;
+    event.display_pair = pair;
+    return queue_ && xQueueSend(queue_, &event, 0) == pdTRUE;
+}
+
 bool AppEventQueue::receive(AppEvent& event, TickType_t wait)
 {
     return queue_ && xQueueReceive(queue_, &event, wait) == pdTRUE;

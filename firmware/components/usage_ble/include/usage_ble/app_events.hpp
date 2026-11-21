@@ -10,7 +10,7 @@
 
 namespace usage_panel {
 
-enum class AppEventType : uint8_t { Usage, Link, TimeSync, ScreenToggle, ScreenPage };
+enum class AppEventType : uint8_t { Usage, Link, TimeSync, ScreenToggle, ScreenPage, DisplayPair };
 
 /** Latest BLE link/security state published to the application loop. */
 struct LinkUpdate {
@@ -32,6 +32,7 @@ struct AppEvent {
     LinkUpdate link;
     TimeSyncUpdate time_sync;
     bool previous_page = false;
+    DisplayPair display_pair = DisplayPair::CodexClaude;
 };
 
 /**
@@ -50,6 +51,7 @@ public:
     bool send_time_sync(const TimeSyncUpdate& update);
     bool send_screen_toggle();
     bool send_screen_page(bool previous);
+    bool send_display_pair(DisplayPair pair);
 
     /** Receives one event, waiting at most `wait` FreeRTOS ticks. */
     bool receive(AppEvent& event, TickType_t wait = 0);

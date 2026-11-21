@@ -345,7 +345,7 @@ class CliPairingRuntimeTests(unittest.IsolatedAsyncioTestCase):
                 self.factory = factory
 
         class FakeSession:
-            def __init__(self, label, transport) -> None:
+            def __init__(self, label, transport, *, display_pair) -> None:
                 sessions.append((label, transport))
                 self.label = label
                 self.transport = transport

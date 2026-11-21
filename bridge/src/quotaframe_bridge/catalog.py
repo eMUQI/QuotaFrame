@@ -42,6 +42,14 @@ MESSAGES: dict[str, tuple[str, str]] = {
         "检查 Bridge 更新",
         "Check for Bridge updates",
     ),
+    "display_pair": ("显示组合", "Display combination"),
+    "display_pair_menu": ("显示组合…", "Display combination…"),
+    "display_pair_requires_firmware": (
+        "显示组合 · 需更新固件",
+        "Display combination · Firmware update required",
+    ),
+    "display_pair_current": ("当前组合为 {pair}。", "Current combination is {pair}."),
+    "display_pair_save_failed": ("无法保存 {name} 的显示组合。", "Could not save the display combination for {name}."),
     "firmware_detail": (
         "固件：{detail}",
         "Firmware: {detail}",
