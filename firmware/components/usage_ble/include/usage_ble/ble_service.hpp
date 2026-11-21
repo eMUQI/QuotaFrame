@@ -28,6 +28,7 @@ struct BleServiceConfig {
     void* ui_context;
     bool enable_screen_toggle = false;
     bool enable_screen_page = false;
+    bool enable_display_pair = false;
 };
 
 /**
@@ -92,6 +93,8 @@ private:
         void*, esp_desktop_buddy_t*, const esp_desktop_buddy_command_view_t*);
     static esp_desktop_buddy_command_extension_result_t screen_toggle_trampoline(
         void*, esp_desktop_buddy_t*, const esp_desktop_buddy_command_view_t*);
+    static esp_desktop_buddy_command_extension_result_t display_pair_trampoline(
+        void*, esp_desktop_buddy_t*, const esp_desktop_buddy_command_view_t*);
     static esp_desktop_buddy_command_extension_result_t screen_page_trampoline(
         void*, esp_desktop_buddy_t*, const esp_desktop_buddy_command_view_t*);
     static esp_desktop_buddy_command_extension_result_t time_sync_trampoline(
@@ -120,6 +123,7 @@ private:
     bool enable_time_sync_ = false;
     bool enable_screen_toggle_ = false;
     bool enable_screen_page_ = false;
+    bool enable_display_pair_ = false;
     OtaSession* ota_ = nullptr;
     OtaCommandRouter ota_commands_{};
     OtaFolderPushSink ota_folder_sink_{};

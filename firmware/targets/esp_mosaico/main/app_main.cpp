@@ -101,10 +101,12 @@ void power_monitor_task(void* /*context*/)
     vTaskDelete(nullptr);
 }
 
+std::atomic<DisplayPair> status_pair{DisplayPair::CodexClaude};
+
 const char* get_ui_location(void* context)
 {
     const auto* current = static_cast<const std::atomic<Page>*>(context);
-    return page_name(current->load(std::memory_order_relaxed));
+    return page_name(current->load(std::memory_order_relaxed), status_pair.load(std::memory_order_relaxed));
 }
 
 const BleServiceConfig ble_config{
@@ -117,6 +119,7 @@ const BleServiceConfig ble_config{
     .ui_context = &status_page,
     .enable_screen_toggle = true,
     .enable_screen_page = true,
+    .enable_display_pair = true,
 };
 
 void ai_button_event(void* /*button_handle*/, void* /*user_data*/)
@@ -382,6 +385,9 @@ extern "C" void app_main(void)
         while (events.receive(event)) {
             if (event.type == AppEventType::Usage) {
                 model.apply(event.usage, esp_timer_get_time() / 1000);
+            } else if (event.type == AppEventType::DisplayPair) {
+                model.set_display_pair(event.display_pair);
+                status_pair.store(event.display_pair, std::memory_order_relaxed);
             } else if (event.type == AppEventType::Link) {
                 gestures.invalidate();
                 ble_link = event.link;

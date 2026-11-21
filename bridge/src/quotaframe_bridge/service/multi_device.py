@@ -10,9 +10,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TypeVar
 
-from quotaframe_bridge.domain.models import Provider, ProviderUsage, SourceState
+from quotaframe_bridge.domain.models import (
+    DISPLAY_PAIR_CAPABILITY, DisplayPair, Provider, ProviderUsage, SourceState,
+)
 from quotaframe_bridge.protocol.messages import (
     MAX_INVERSE_CLOCK_SKEW_SECONDS,
+    CommandRejected,
+    DeviceStatus,
+    encode_display_pair,
     Sequence,
     encode_screen_toggle,
     encode_screen_page,
@@ -23,6 +28,7 @@ from quotaframe_bridge.service.state import UsageStateStore
 from quotaframe_bridge.service.time_sync import TimeSyncScheduler
 from quotaframe_bridge.sources.base import ProgressiveUsageSource, UsageSource
 from quotaframe_bridge.sources.codexbar import CodexBarResolutionError
+from quotaframe_bridge.targets import TARGETS_BY_ID
 from quotaframe_bridge.transports.base import (
     TransportCleanupError,
     TransportReset,
@@ -46,10 +52,11 @@ async def _cancel(task: asyncio.Task[None] | None) -> None:
 
 @dataclass(frozen=True, slots=True)
 class UsageSnapshot:
-    """One immutable publication generation for both providers."""
+    """One immutable publication generation for the available providers."""
 
     codex: ProviderUsage
     claude: ProviderUsage
+    gemini: ProviderUsage | None = None
 
 
 class DeviceSession:
@@ -60,6 +67,7 @@ class DeviceSession:
         label: str,
         transport: UsageTransport,
         *,
+        display_pair: DisplayPair = DisplayPair.CODEX_CLAUDE,
         wall_now: Callable[[], datetime] = lambda: datetime.now().astimezone(),
         monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
@@ -83,10 +91,25 @@ class DeviceSession:
         self._time_sync_task: asyncio.Task[None] | None = None
         self._screen_command_task: asyncio.Task[None] | None = None
         self._force_time_sync = True
+        self.display_pair = display_pair
+        self.supports_display_pair = False
+        self._applied_display_pair: tuple[DeviceStatus, DisplayPair] | None = None
 
     @property
     def connected(self) -> bool:
         return self._connected and getattr(self.transport, "connected", True)
+
+    @property
+    def display_pair_requires_firmware(self) -> bool:
+        """Report missing display support only for identified QuotaFrame firmware."""
+        status = device_status(self.transport) if self.connected else None
+        return (
+            status is not None
+            and status.secure
+            and status.firmware_project == "quotaframe"
+            and status.target in TARGETS_BY_ID
+            and DISPLAY_PAIR_CAPABILITY not in status.capabilities
+        )
 
     @property
     def exclusive_active(self) -> bool:
@@ -192,6 +215,9 @@ class DeviceSession:
         self._connect_task = task
         try:
             await task
+            status = device_status(self.transport)
+            self.supports_display_pair = bool(status and status.secure and DISPLAY_PAIR_CAPABILITY in status.capabilities)
+            self._applied_display_pair = None
             return True
         except asyncio.CancelledError:
             if asyncio.current_task().cancelling():
@@ -285,7 +311,17 @@ class DeviceSession:
             snapshot = self._pending or snapshot
             revision = self._offered_revision
             level = logging.INFO if self._delivered_revision == 0 else logging.DEBUG
-            for usage in (snapshot.codex, snapshot.claude):
+            status = device_status(self.transport)
+            supports_pair = bool(status and status.secure and DISPLAY_PAIR_CAPABILITY in status.capabilities)
+            self.supports_display_pair = supports_pair
+            pair = self.display_pair
+            usages = (snapshot.codex, snapshot.claude)
+            if supports_pair and pair.needs_gemini:
+                gemini = snapshot.gemini or ProviderUsage(
+                    Provider.GEMINI, SourceState.UNAVAILABLE, int(self._wall_now().timestamp()),
+                )
+                usages = (*usages, gemini)
+            for usage in usages:
                 sequence = self._sequence.next()
                 sent_at = int(self._wall_now().timestamp())
                 if sent_at + MAX_INVERSE_CLOCK_SKEW_SECONDS < usage.sampled_at:
@@ -298,6 +334,19 @@ class DeviceSession:
                     level, "%s usage ACK: provider=%s state=%s",
                     self.label, usage.provider.value, usage.state.value,
                 )
+            applied = self._applied_display_pair
+            if status is not None and supports_pair and (
+                applied is None or applied[0] is not status or applied[1] is not pair
+            ):
+                sequence = self._sequence.next()
+                try:
+                    await self.transport.send_command(
+                        encode_display_pair(pair, sequence), "display_pair", sequence,
+                    )
+                except CommandRejected:
+                    LOGGER.debug("%s display combination deferred", self.label)
+                else:
+                    self._applied_display_pair = (status, pair)
             return revision
 
     def _schedule_time_sync(self) -> None:
@@ -344,6 +393,7 @@ class MultiDeviceBridgeService:
         clock: Callable[[], int] = lambda: int(time.time()),
         monotonic: Callable[[], float] = time.monotonic,
         store: UsageStateStore | None = None,
+        gemini_source: Callable[[int], Awaitable[ProviderUsage]] | None = None,
     ) -> None:
         # Zero sessions is a legitimate steady state, not a misconfiguration:
         # a user who has not adopted a board yet still gets usage collection
@@ -362,6 +412,8 @@ class MultiDeviceBridgeService:
         self.store = UsageStateStore() if store is None else store
         self._first_collection = True
         self._collect_now = asyncio.Event()
+        self._gemini_now = asyncio.Event()
+        self._gemini_source = gemini_source
         self._supervisors: dict[DeviceSession, asyncio.Task[None]] = {}
         self._running = False
         self.collection_count = 0
@@ -383,6 +435,12 @@ class MultiDeviceBridgeService:
         """Ask the live loop to collect now instead of after the interval."""
 
         self._collect_now.set()
+        self._gemini_now.set()
+
+    def set_display_pair(self, session: DeviceSession, pair: DisplayPair) -> None:
+        session.display_pair = pair
+        session.offer(self._usage_snapshot())
+        self._gemini_now.set()
 
     async def collect(self) -> None:
         """Collect once, retaining last-valid values separately from publish state."""
@@ -454,6 +512,7 @@ class MultiDeviceBridgeService:
                 return
             for completed in range(cycles):
                 await self.collect()
+                await self._refresh_gemini()
                 offers = self._offer_current()
                 await self._wait_for_available_deliveries(offers)
                 if completed + 1 < cycles:
@@ -487,12 +546,8 @@ class MultiDeviceBridgeService:
         if session in self.sessions:
             return
         self.sessions = self.sessions + (session,)
-        providers = self.store.providers
-        if providers:
-            session.offer(UsageSnapshot(
-                codex=providers[Provider.CODEX],
-                claude=providers[Provider.CLAUDE],
-            ))
+        if self.store.providers:
+            session.offer(self._usage_snapshot())
         if self._running:
             self._start_supervisor(session)
 
@@ -581,6 +636,8 @@ class MultiDeviceBridgeService:
     async def _run_live(self) -> None:
         async with asyncio.TaskGroup() as tasks:
             tasks.create_task(self._publish_periodically())
+            if self._gemini_source is not None:
+                tasks.create_task(self._collect_gemini())
             while True:
                 self._collect_now.clear()
                 await self.collect()
@@ -590,19 +647,53 @@ class MultiDeviceBridgeService:
                 except TimeoutError:
                     pass
 
+    async def _refresh_gemini(self) -> None:
+        if self._gemini_source is None or not any(
+            session.display_pair.needs_gemini for session in self.sessions
+        ):
+            return
+        attempted_at = self.clock()
+        try:
+            usage = await self._gemini_source(attempted_at)
+        except Exception as exc:
+            LOGGER.debug("Gemini usage unavailable: %s", type(exc).__name__)
+            usage = ProviderUsage(Provider.GEMINI, SourceState.UNAVAILABLE, attempted_at)
+        self.store.merge_collection(
+            {Provider.GEMINI: usage}, attempted_at=attempted_at, partial=True,
+        )
+
+    async def _collect_gemini(self) -> None:
+        while True:
+            self._gemini_now.clear()
+            await self._refresh_gemini()
+            if any(session.display_pair.needs_gemini for session in self.sessions):
+                self._offer_current()
+            try:
+                await asyncio.wait_for(self._gemini_now.wait(), self.interval)
+            except TimeoutError:
+                pass
+
     async def _publish_periodically(self) -> None:
         while True:
             await asyncio.sleep(self.publish_interval)
             self._offer_current()
 
-    def _offer_current(self) -> tuple[tuple[DeviceSession, int], ...]:
+    def _usage_snapshot(self) -> UsageSnapshot:
         providers = self.store.providers
         if not providers:
-            return ()
-        snapshot = UsageSnapshot(
+            attempted_at = self.clock()
+            return UsageSnapshot(
+                codex=ProviderUsage(Provider.CODEX, SourceState.UNAVAILABLE, attempted_at),
+                claude=ProviderUsage(Provider.CLAUDE, SourceState.UNAVAILABLE, attempted_at),
+            )
+        return UsageSnapshot(
             codex=providers[Provider.CODEX],
             claude=providers[Provider.CLAUDE],
+            gemini=providers.get(Provider.GEMINI),
         )
-        return tuple(
-            (session, session.offer(snapshot)) for session in self.sessions
-        )
+
+    def _offer_current(self) -> tuple[tuple[DeviceSession, int], ...]:
+        if not self.store.providers:
+            return ()
+        snapshot = self._usage_snapshot()
+        return tuple((session, session.offer(snapshot)) for session in self.sessions)

@@ -79,6 +79,7 @@ extern "C" void app_main() {
                             page_name,
                             nullptr,
                             true,
+                            true,
                             true};
     ESP_ERROR_CHECK(ble.start(events, config));
     usb_serial_jtag_driver_config_t usb = USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
@@ -123,6 +124,16 @@ extern "C" void app_main() {
             case AppEventType::Usage:
                 view.model.apply(event.usage, view.now_ms);
                 break;
+            case AppEventType::DisplayPair:
+                if (event.display_pair != view.model.display_pair()) {
+                    for (size_t slot = 0; slot < 2; ++slot) {
+                        if (view.model.display_provider(slot) != display_provider(event.display_pair, slot))
+                            view.warning[slot] = 0;
+                    }
+                    force = baseline = true;
+                    view.model.set_display_pair(event.display_pair);
+                }
+                break;
             case AppEventType::Link:
                 // Online and offline differ by a gray level across both service blocks.
                 baseline = baseline || view.link.encrypted != event.link.encrypted;
@@ -148,7 +159,7 @@ extern "C" void app_main() {
             }
         }
         for (int i = 0; i < 2; ++i) {
-            const auto &s = view.model.snapshot(i ? Provider::Claude : Provider::Codex);
+            const auto &s = view.model.snapshot(view.model.display_provider(i));
             const bool short_present = s.has_valid_data && s.short_window.present &&
                                        (s.latest_short_present || !view.link.encrypted);
             const bool week_present = s.has_valid_data && s.week_window.present &&

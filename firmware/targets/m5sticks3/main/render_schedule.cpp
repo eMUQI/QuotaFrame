@@ -7,6 +7,7 @@ namespace usage_panel {
 bool TimedRenderKey::operator==(const TimedRenderKey& other) const
 {
     return page == other.page &&
+           display_pair == other.display_pair &&
            first_state == other.first_state &&
            second_state == other.second_state &&
            ota_confirm_seconds == other.ota_confirm_seconds &&
@@ -21,16 +22,17 @@ TimedRenderKey make_timed_render_key(
 {
     TimedRenderKey key{};
     key.page = page;
+    key.display_pair = model.display_pair();
     key.battery = battery;
 
     if (page == Page::Overview) {
-        key.first_state = model.display_state(Provider::Codex, connected);
-        key.second_state = model.display_state(Provider::Claude, connected);
+        key.first_state = model.display_state(model.display_provider(0), connected);
+        key.second_state = model.display_state(model.display_provider(1), connected);
         return key;
     }
 
     const Provider provider =
-        page == Page::Codex ? Provider::Codex : Provider::Claude;
+        model.display_provider(page == Page::Codex ? 0 : 1);
     key.first_state = model.display_state(provider, connected);
 
     const auto& snapshot = model.snapshot(provider);

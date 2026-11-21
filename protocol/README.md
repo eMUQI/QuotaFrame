@@ -26,7 +26,7 @@ Windows/macOS Bridge 作为 Central，经已配对、已加密的 NUS 连接发�
 {"ack":"usage","error":"invalid_request","n":42,"ok":false}
 ```
 
-Bridge 取数失败时继续发布该服务最后有效数据，保留原始状态、窗口和 `sampled_at`；尚无有效数据时发布 `unavailable`。固件收到 `unavailable` 时同样保留最后有效样本。仅蓝牙断开或从未取得有效数据时显示灰态，样本年龄和刷新失败不改变已有数据的显示。成功取数后立即采用新结果，Codex 与 Claude 独立更新。
+Bridge 取数失败时继续发布该服务最后有效数据，保留原始状态、窗口和 `sampled_at`；尚无有效数据时发布 `unavailable`。固件收到 `unavailable` 时同样保留最后有效样本。仅蓝牙断开或从未取得有效数据时显示灰态，样本年龄和刷新失败不改变已有数据的显示。成功取数后立即采用新结果，各服务独立更新。只有通告 `display.pair.v1` 的设备才会收到 Gemini 用量和所选[显示组合](open-device-access.md#5-时间与屏幕)。
 
 ## Status
 

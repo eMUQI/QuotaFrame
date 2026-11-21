@@ -43,6 +43,7 @@ class MenuAction(enum.Enum):
     REFRESH = "refresh"
     ADD_DEVICE = "add_device"
     FIRMWARE_UPDATE = "firmware_update"
+    DISPLAY_PAIR = "display_pair"
     BRIDGE_UPDATE = "bridge_update"
     REPAIR = "repair"
     FORGET_DEVICE = "forget_device"
@@ -82,6 +83,7 @@ def build_menu(
     bridge_update_detail: str = tr("check_bridge_update"),
     forget_enabled: bool = False,
     firmware_actions: tuple[tuple[str, str, bool, str], ...] = (),
+    display_pairs: tuple[tuple[str, str, bool], ...] = (),
 ) -> tuple[MenuItem, ...]:
     """Build status, screen controls, device actions, and application commands.
 
@@ -111,6 +113,11 @@ def build_menu(
             action_enabled=enabled,
             device_address=address,
         ) for address, label, enabled, detail in firmware_actions),
+        *(MenuItem(
+            label=f"{label} · {tr('display_pair_menu' if enabled else 'display_pair_requires_firmware')}",
+            action=MenuAction.DISPLAY_PAIR if enabled else None,
+            device_address=address,
+        ) for address, label, enabled in display_pairs),
         MenuItem(label=REPAIR_LABEL, action=MenuAction.REPAIR),
         MenuItem(
             label=FORGET_LABEL,

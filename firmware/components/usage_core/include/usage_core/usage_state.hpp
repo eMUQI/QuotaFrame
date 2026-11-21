@@ -6,7 +6,12 @@
 namespace usage_panel {
 
 /** Usage providers supported by protocol version 1. */
-enum class Provider : uint8_t { Codex, Claude };
+enum class Provider : uint8_t { Codex, Claude, Gemini };
+enum class DisplayPair : uint8_t { CodexClaude, CodexGemini, ClaudeGemini };
+
+const char* provider_name(Provider provider);
+const char* provider_label(Provider provider);
+Provider display_provider(DisplayPair pair, size_t slot);
 
 /** Whether a source sample contains both, one, or no usage windows. */
 enum class SourceState : uint8_t { Ok, Partial, Unavailable };
@@ -77,6 +82,11 @@ public:
     /** Returns the cached snapshot for a provider. */
     const ProviderSnapshot& snapshot(Provider provider) const;
 
+    /** Changes the two visible slots without discarding cached provider data. */
+    void set_display_pair(DisplayPair pair) { pair_ = pair; }
+    DisplayPair display_pair() const { return pair_; }
+    Provider display_provider(size_t slot) const { return usage_panel::display_provider(pair_, slot); }
+
     /**
      * Derives the user-visible state: no data, disconnected, partial, or online.
      * Sample age does not change presentation.
@@ -87,7 +97,8 @@ public:
     uint32_t estimated_epoch(Provider provider, uint64_t now_ms) const;
 
 private:
-    ProviderSnapshot snapshots_[2]{};
+    DisplayPair pair_ = DisplayPair::CodexClaude;
+    ProviderSnapshot snapshots_[3]{};
 };
 
 /** Returns the fixed display label for a DisplayState. */

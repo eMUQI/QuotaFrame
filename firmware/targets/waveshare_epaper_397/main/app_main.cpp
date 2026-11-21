@@ -85,6 +85,7 @@ extern "C" void app_main() {
                             page_name,
                             nullptr,
                             true,
+                            true,
                             true};
     ESP_ERROR_CHECK(ble.start(events, config));
     usb_serial_jtag_driver_config_t usb = USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
@@ -135,6 +136,16 @@ extern "C" void app_main() {
             case AppEventType::Usage:
                 view.model.apply(event.usage, view.now_ms);
                 break;
+            case AppEventType::DisplayPair:
+                if (event.display_pair != view.model.display_pair()) {
+                    for (size_t slot = 0; slot < 2; ++slot) {
+                        if (view.model.display_provider(slot) != display_provider(event.display_pair, slot))
+                            view.warning[slot] = 0;
+                    }
+                    force = baseline = true;
+                    view.model.set_display_pair(event.display_pair);
+                }
+                break;
             case AppEventType::Link:
                 view.link = event.link;
                 force = true;
@@ -171,7 +182,7 @@ extern "C" void app_main() {
             }
         }
         for (int i = 0; i < 2; ++i) {
-            const auto &s = view.model.snapshot(i ? Provider::Claude : Provider::Codex);
+            const auto &s = view.model.snapshot(view.model.display_provider(i));
             uint8_t next = warning(view.warning[i], s.short_window.used_percent);
             if (next != view.warning[i]) {
                 view.warning[i] = next;

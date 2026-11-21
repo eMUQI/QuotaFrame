@@ -210,8 +210,7 @@ void Board::sample_trend(View &v) {
             TrendPoint p;
             v.trend_count = 0;
             while (fread(&p, sizeof(p), 1, f) == 1 && v.trend_count < 48) {
-                if (p.epoch < 1700000000 || (p.codex > 100 && p.codex != 255) ||
-                    (p.claude > 100 && p.claude != 255)) {
+                if (p.epoch < 1700000000 || !p.valid_values()) {
                     valid = false;
                     break;
                 }
@@ -224,8 +223,11 @@ void Board::sample_trend(View &v) {
             v.trend_count = 0;
         }
     }
-    uint32_t epoch = std::max(v.model.estimated_epoch(Provider::Codex, v.now_ms),
-                              v.model.estimated_epoch(Provider::Claude, v.now_ms));
+    uint32_t epoch = std::max({
+        v.model.estimated_epoch(Provider::Codex, v.now_ms),
+        v.model.estimated_epoch(Provider::Claude, v.now_ms),
+        v.model.estimated_epoch(Provider::Gemini, v.now_ms),
+    });
     if (!epoch || (v.trend_count && epoch / 1800 <= v.trend[v.trend_count - 1].epoch / 1800))
         return;
     if (!v.link.encrypted)
@@ -234,7 +236,7 @@ void Board::sample_trend(View &v) {
         const auto &s = v.model.snapshot(p);
         return s.latest_short_present && s.short_window.present ? s.short_window.used_percent : 255;
     };
-    TrendPoint p{epoch, value(Provider::Codex), value(Provider::Claude), {}};
+    TrendPoint p{epoch, value(Provider::Codex), value(Provider::Claude), {value(Provider::Gemini), 1}};
     if (v.trend_count == 48) {
         std::move(v.trend.begin() + 1, v.trend.end(), v.trend.begin());
         --v.trend_count;

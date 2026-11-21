@@ -420,7 +420,7 @@ void DisplayUi::home(const View &v) {
         text(130, 28, environment, 16, 1);
     }
     for (int i = 0; i < 2; ++i) {
-        Provider provider = i ? Provider::Claude : Provider::Codex;
+        Provider provider = v.model.display_provider(i);
         const auto &s = v.model.snapshot(provider);
         int x = v.portrait ? 24
                 : i        ? 427
@@ -429,7 +429,7 @@ void DisplayUi::home(const View &v) {
         // Offline values use the light-gray checker, which remains distinct in monochrome mode.
         uint8_t ink = v.link.encrypted ? 0 : 2;
         char b[80];
-        text(x, base, i ? "CLAUDE" : "CODEX", v.portrait ? 34 : 30, ink, 0, -1);
+        text(x, base, provider_label(provider), v.portrait ? 34 : 30, ink, 0, -1);
         uint32_t epoch = v.model.estimated_epoch(provider, v.now_ms);
         uint32_t age = epoch > s.sampled_at ? epoch - s.sampled_at : 0;
         // Minute granularity keeps the label from forcing a partial refresh on every redraw.
@@ -445,7 +445,8 @@ void DisplayUi::home(const View &v) {
         bool critical = present && v.warning[i] == 2 && v.link.encrypted;
         if (critical)
             rect(x - 8, base + 43, w + 16, 172, 0);
-        text(x + (critical ? 10 : 0), base + 46, "SHORT", 16, critical ? 3 : 1);
+        text(x + (critical ? 10 : 0), base + 46,
+             provider == Provider::Gemini ? "5 HOUR" : "SHORT", 16, critical ? 3 : 1);
         if (critical) {
             text(x + w - 130, base + 46, "EXHAUSTED", 16, 3, 1, 0);
         } else {
@@ -534,7 +535,7 @@ void DisplayUi::clock(const View &v) {
     line(24, height_ - 92, width_ - 24, height_ - 92, 2);
     int percentages[2] = {-1, -1};
     for (int i = 0; i < 2; ++i) {
-        const auto provider = i ? Provider::Claude : Provider::Codex;
+        const auto provider = v.model.display_provider(i);
         const auto state = v.model.display_state(provider, v.link.connected);
         const auto &s = v.model.snapshot(provider);
         if (state == DisplayState::Online || state == DisplayState::Partial) {
@@ -558,7 +559,10 @@ void DisplayUi::trend(const View &v) {
         return;
     }
     text(24, 94, "SHORT WINDOW / %", 16, 1);
-    text(456, 94, "CODEX --- CLAUDE - -", 15, 1, 1, 0);
+    char legend[32];
+    snprintf(legend, sizeof(legend), "%s --- %s - -",
+             provider_label(v.model.display_provider(0)), provider_label(v.model.display_provider(1)));
+    text(456, 94, legend, 15, 1, 1, 0);
     for (int p = 25; p <= 100; p += 25) {
         int y = 366 - static_cast<int>(2.33f * p);
         line(24, y, 776, y, 2);
@@ -575,7 +579,8 @@ void DisplayUi::trend(const View &v) {
         for (int i = 1; i < v.trend_count; ++i) {
             auto &a = v.trend[i - 1];
             auto &b = v.trend[i];
-            int av = service ? a.claude : a.codex, bv = service ? b.claude : b.codex;
+            const Provider provider = v.model.display_provider(service);
+            int av = a.value(provider), bv = b.value(provider);
             if (av > 100 || bv > 100 || b.epoch - a.epoch > 3600 || latest - a.epoch > 86400)
                 continue;
             int x1 = 776 - static_cast<int>((latest - a.epoch) * 752ULL / 86400),

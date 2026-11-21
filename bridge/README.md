@@ -4,7 +4,7 @@ QuotaFrame 的电脑端配套应用，将 CodexBar / Win-CodexBar 获取的 Code
 
 Windows 上发布给日常使用者的 Bridge 是托盘常驻程序：双击`quotaframe-bridge.exe` 后会出现托盘图标，右键图标可打开菜单。左键单击图标可切换所有已连接且支持该功能的设备的时钟屏保；是否支持以设备在安全 status 中通告的 `screen.toggle.v1` 为准。未连接、不支持或正在升级的设备会跳过。macOS 提供菜单栏应用。源码调试与无设备验证也可使用控制台入口 `python -m quotaframe_bridge`，见[开发指南](DEVELOPMENT.md)。
 
-Bridge 仅同步用量百分比、重置时间和采样时间，不向设备发送账号身份、费用、计划或凭据。
+同步用量时，Bridge 只发送用量百分比、重置时间和采样时间，账号身份和凭据保留在电脑端。
 
 ## 环境
 
@@ -18,6 +18,12 @@ Bridge 仅同步用量百分比、重置时间和采样时间，不向设备发�
 | 解除配对 | `--repair-pairing` | 只能去「系统设置 > 蓝牙 > 忘记此设备」 |
 
 macOS 提供控制台与菜单栏形态，Release workflow 生成带图标和原生通知的 Apple Silicon DMG。Intel、Developer ID 签名与 notarization 尚未提供；硬件覆盖见[验证范围](../docs/verification.md)。
+
+## Gemini 与显示组合
+
+每台设备默认显示 Codex + Claude。设备连接并通告 `display.pair.v1` 后，Windows 可在托盘的设备子菜单中打开「显示组合」，macOS 可点击对应设备的「显示组合…」。另外两种组合为 Codex + Gemini 和 Claude + Gemini。Bridge 在本机逐设备保存选择，并在设备重连时同步。已连接的 QuotaFrame 设备如果固件还不支持此功能，设备菜单会显示「显示组合 · 需更新固件」。
+
+Gemini 显示的是 Antigravity 的 Gemini 模型组额度。在电脑上安装 [Antigravity CLI](https://antigravity.google/docs/getting-started?tab=cli) v1.1.11 或更新版本，并在 CLI 中登录。选择含 Gemini 的组合后，Bridge 用内置的 `/usage` 命令读取 5 小时和每周窗口。CLI 装在非默认位置时可设置 `ANTIGRAVITY_CLI_PATH` 指定可执行文件。Gemini 没有短周期窗口时，设备只显示周额度。
 
 ### macOS 菜单栏形态
 

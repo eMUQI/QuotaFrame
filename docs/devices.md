@@ -9,7 +9,7 @@
 | 屏幕 | 480×480 圆角方形 AMOLED | 135×240 LCD | 800×480 四灰阶墨水屏 | 480×480 AMOLED |
 | 翻页交互 | 底部触控标签与左右滑动 | 正面按键 | 三向拨轮 | 触控标签、左右滑动与 AI 键 |
 | 摄像头手势（实验性） | — | — | — | 需左槽 CameraBoard，默认关闭 |
-| 用量页面 | 总览 / Codex / Claude | 总览 / Codex / Claude | 主页同屏显示 Codex 与 Claude，另有趋势页 | 总览 / Codex / Claude |
+| 用量页面 | 总览 / 所选服务详情 | 总览 / 所选服务详情 | 主页同屏显示所选服务，另有趋势页 | 总览 / 所选服务详情 |
 | 断连保留最后用量 | ✅ | ✅ | ✅ | ✅ |
 | 电量与充电图标 | ✅ AXP2101 | ✅ M5PM1 | ✅ AXP2101 | ✅ BQ27220 |
 | 时钟屏保 | ✅ PCF85063 RTC | — | ✅ PCF85063 RTC | ⚠️ 无 RTC 芯片，掉电后日历需 Bridge 重新下发 |
@@ -28,9 +28,11 @@
 
 ePaper 3.97 与 ESP-Mosaico 的详细说明见 [ePaper 3.97 固件说明](../firmware/targets/waveshare_epaper_397/README.md) 与 [ESP-Mosaico 固件说明](../firmware/targets/esp_mosaico/README.md)。
 
-RLCD 4.2 使用 400×300 黑白反射式 LCD，提供总览、Codex / Claude 详情、趋势、时钟和设置页；竖屏仅在总览和时钟间轮换。它支持 RTC、温湿度显示、电压估算电量，以及需 FAT microSD 卡的 48 点趋势。屏幕方向由设置选择，可通过 Web 烧录器安装。当前实机验证范围和完整操作见 [RLCD 4.2 说明](../firmware/targets/waveshare_rlcd_42/README.md)。
+RLCD 4.2 使用 400×300 黑白反射式 LCD，提供总览、所选服务详情、趋势、时钟和设置页；竖屏仅在总览和时钟间轮换。它支持 RTC、温湿度显示、电压估算电量，以及需 FAT microSD 卡的 48 点趋势。屏幕方向由设置选择，可通过 Web 烧录器安装。当前实机验证范围和完整操作见 [RLCD 4.2 说明](../firmware/targets/waveshare_rlcd_42/README.md)。
 
-Read Pico 使用 684×1216 十六灰阶墨水屏，主页同屏显示 Codex 与 Claude 用量、告警状态和 24 小时趋势，另有时钟、设置、配对和 OTA 页面。它支持 PMU RTC、电量与充电状态、四向自动旋转、拿起时从自动时钟返回主页，以及需 FAT microSD 卡的 48 点趋势。可通过 Web 烧录器安装，完整操作见 [Read Pico 说明](../firmware/targets/mindreset_read_pico/README.md)。
+Read Pico 使用 684×1216 十六灰阶墨水屏，主页同屏显示所选服务的用量、告警状态和 24 小时趋势，另有时钟、设置、配对和 OTA 页面。它支持 PMU RTC、电量与充电状态、四向自动旋转、拿起时从自动时钟返回主页，以及需 FAT microSD 卡的 48 点趋势。可通过 Web 烧录器安装，完整操作见 [Read Pico 说明](../firmware/targets/mindreset_read_pico/README.md)。
+
+支持 `display.pair.v1` 的固件保留双服务布局。默认显示 Codex + Claude，在 [Bridge 的显示组合设置](../bridge/README.md#gemini-与显示组合)中可为每台设备选择其他组合。触屏底部的详情标签与所选服务同步。支持 TF 卡趋势的型号按服务保存历史，更新前的记录保留原有 Codex 和 Claude 数据，Gemini 曲线从新采样开始。
 
 ## 屏幕快捷操作
 

@@ -125,6 +125,7 @@ class MacStatusItemShell:
         on_firmware_update: Callable[[str], None] = lambda _label: None,
         on_bridge_update: Callable[[], None] = lambda: None,
         on_toggle_screensaver: Callable[[], None] = lambda: None,
+        on_display_pair: Callable[[str], None] = lambda _address: None,
         on_turn_page: Callable[[int], None] = lambda _direction: None,
         bindings: AppKitBindings | None = None,
         icon_directory: Path | None = None,
@@ -149,6 +150,7 @@ class MacStatusItemShell:
             MenuAction.QUIT: on_quit,
         }
         self._on_firmware_update = on_firmware_update
+        self._on_display_pair = on_display_pair
         self._firmware_actions: dict[str, tuple[bool, str]] = {}
         self._on_toggle_autostart = on_toggle_autostart
         self._state = TrayState.IDLE
@@ -157,6 +159,7 @@ class MacStatusItemShell:
         self._bridge_update_enabled = True
         self._bridge_update_detail = tr("check_bridge_update")
         self._devices: dict[str, tuple[str, object]] = {}
+        self._display_pair_rows: tuple[tuple[str, str, bool], ...] = ()
         self._notifications = (
             MacNotificationCenter() if notifications is None else notifications
         )
@@ -205,6 +208,7 @@ class MacStatusItemShell:
             bridge_update_detail=self._bridge_update_detail,
             forget_enabled=bool(self._devices),
             firmware_actions=self._firmware_rows(),
+            display_pairs=self._display_pair_rows,
         )
         self._menu_keys = tuple((entry.action, entry.device_address, self._devices.get(entry.device_address, ("", None))[1]) for entry in entries)
         for entry in entries:
@@ -224,6 +228,7 @@ class MacStatusItemShell:
             bridge_update_detail=self._bridge_update_detail,
             forget_enabled=bool(self._devices),
             firmware_actions=self._firmware_rows(),
+            display_pairs=self._display_pair_rows,
         )
         keys = tuple((entry.action, entry.device_address, self._devices.get(entry.device_address, ("", None))[1]) for entry in entries)
         if keys != self._menu_keys:
@@ -254,12 +259,14 @@ class MacStatusItemShell:
             # action it would look enabled but do nothing when clicked.
             item.setEnabled_(False)
             return item
-        if entry.action is MenuAction.FIRMWARE_UPDATE:
+        if entry.action in (MenuAction.FIRMWARE_UPDATE, MenuAction.DISPLAY_PAIR):
+            callback = (self._on_firmware_update if entry.action is MenuAction.FIRMWARE_UPDATE
+                        else self._on_display_pair)
             session = self._devices.get(entry.device_address, ("", None))[1]
             def handler():
                 if (entry.device_address in self._devices
                         and self._devices.get(entry.device_address, ("", None))[1] is session):
-                    self._on_firmware_update(entry.device_address)
+                    callback(entry.device_address)
         else:
             handler = self._handlers[entry.action]
         target, selector = self._bindings.make_action_target(handler)
@@ -329,14 +336,25 @@ class MacStatusItemShell:
         self._bindings.dispatch_to_main(callback)
 
     def set_devices(self, devices: tuple[tuple[str, str, object], ...]) -> None:
+        current = {address: (name, session) for address, name, session in devices}
+        display_pairs = []
+        for address, (name, session) in current.items():
+            enabled = getattr(session, "supports_display_pair", False)
+            if enabled or getattr(session, "display_pair_requires_firmware", False):
+                display_pairs.append((address, name, enabled))
+        rows = tuple(display_pairs)
+
         def apply():
-            current = {address: (name, session) for address, name, session in devices}
             if (tuple(current) == tuple(self._devices)
                     and all(address in self._devices
                             and self._devices[address][0] == name
                             and self._devices[address][1] is session
                             for address, (name, session) in current.items())):
+                if rows != self._display_pair_rows:
+                    self._display_pair_rows = rows
+                    self._apply_menu()
                 return
+            self._display_pair_rows = rows
             self._firmware_actions = {
                 address: value for address, value in self._firmware_actions.items()
                 if address in current and address in self._devices

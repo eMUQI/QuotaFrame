@@ -464,7 +464,7 @@ void build_compact_metric(lv_obj_t* parent, const char* name,
                            int label_y, int value_y, int bar_y,
                            DisplayUi::MetricWidgets& widgets)
 {
-    lv_obj_t* label = make_label(
+    lv_obj_t* label = widgets.label = make_label(
         parent, name, OVERVIEW_PAD, label_y,
         &lv_font_montserrat_14, COLOR_MUTED);
     lv_obj_set_style_text_letter_space(label, 1, 0);
@@ -488,7 +488,7 @@ void build_large_metric(lv_obj_t* parent, const char* name, int y,
     lv_obj_set_pos(card, MARGIN, y);
     lv_obj_set_size(card, CARD_W, 158);
     style_panel(card);
-    lv_obj_t* label = make_label(
+    lv_obj_t* label = widgets.label = make_label(
         card, name, CARD_PAD, 16, &lv_font_montserrat_16, COLOR_MUTED);
     lv_obj_set_style_text_letter_space(label, 1, 0);
     widgets.reset =
@@ -952,7 +952,7 @@ void DisplayUi::build_overview(lv_obj_t* screen)
         lv_obj_set_pos(widgets.panel, MARGIN, i == 0 ? 17 : 195);
         lv_obj_set_size(widgets.panel, CARD_W, 166);
         style_panel(widgets.panel);
-        lv_obj_t* title = make_label(
+        lv_obj_t* title = widgets.title = make_label(
             widgets.panel, names[i], OVERVIEW_PAD, 14,
             &lv_font_montserrat_20);
         lv_obj_set_style_text_letter_space(title, 1, 0);
@@ -986,7 +986,7 @@ void DisplayUi::build_provider_page(lv_obj_t* screen, Provider provider)
     lv_obj_add_event_cb(
         widgets.panel, gesture_event, LV_EVENT_GESTURE, this);
 
-    lv_obj_t* title = make_label(
+    lv_obj_t* title = widgets.title = make_label(
         widgets.panel, provider == Provider::Codex ? "CODEX" : "CLAUDE",
         MARGIN, 11, &lv_font_montserrat_26);
     lv_obj_set_style_text_letter_space(title, 1, 0);
@@ -1497,7 +1497,11 @@ void DisplayUi::update_provider(
             format_countdown(snapshot.short_window.has_reset,
                 snapshot.short_window.reset_at, model.estimated_epoch(provider, now_ms),
                 countdown, sizeof(countdown));
-            lv_label_set_text_fmt(widgets.status, "SHORT RESET %s", countdown);
+            const char* label = provider == Provider::Gemini ? "5H RESET" : "SHORT RESET";
+            lv_label_set_text_fmt(widgets.status, "%s %s", label, countdown);
+        } else if (!widgets.compact && provider == Provider::Gemini &&
+                   state == DisplayState::Online) {
+            lv_label_set_text_static(widgets.status, "ANTIGRAVITY");
         } else if (!widgets.compact && state == DisplayState::Online) {
             const uint32_t epoch = model.estimated_epoch(provider, now_ms);
             const uint32_t age = epoch > snapshot.sampled_at
@@ -1728,13 +1732,23 @@ void DisplayUi::render(
     }
     lv_obj_add_flag(screensaver_panel_, LV_OBJ_FLAG_HIDDEN);
     show_page(page, /*animate=*/true);
-    for (Provider provider : {Provider::Codex, Provider::Claude}) {
-        const size_t index = provider_index(provider);
-        update_provider(
-            overview_[index], model, provider, connected, now_ms);
-        update_provider(
-            provider_pages_[index], model, provider, connected, now_ms);
+    const bool pair_changed = rendered_pair_ != model.display_pair();
+    for (size_t slot = 0; slot < 2; ++slot) {
+        const Provider provider = model.display_provider(slot);
+        if (pair_changed) {
+            const char* name = provider_label(provider);
+            const bool gemini = provider == Provider::Gemini;
+            lv_label_set_text_static(overview_[slot].title, name);
+            lv_label_set_text_static(provider_pages_[slot].title, name);
+            lv_label_set_text_static(nav_labels_[slot + 1], name);
+            lv_label_set_text_static(overview_[slot].short_window.label, gemini ? "5 HOUR" : "SHORT");
+            lv_label_set_text_static(provider_pages_[slot].short_window.label,
+                                     gemini ? "5 HOUR WINDOW" : "SHORT WINDOW");
+        }
+        update_provider(overview_[slot], model, provider, connected, now_ms);
+        update_provider(provider_pages_[slot], model, provider, connected, now_ms);
     }
+    rendered_pair_ = model.display_pair();
 
     if (has_passkey) {
         lv_label_set_text(connection_label_, "PAIRING");

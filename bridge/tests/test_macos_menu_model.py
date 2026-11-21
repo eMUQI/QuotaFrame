@@ -108,10 +108,23 @@ class MenuModelTests(unittest.TestCase):
         self.assertEqual([row.enabled for row in rows], [True, False])
         self.assertIn("42%", rows[1].label)
 
+    def test_old_firmware_explains_the_unavailable_display_pair(self) -> None:
+        menu = build_menu(display_pairs=(
+            ("new", "New Panel", True),
+            ("old", "Old Panel", False),
+        ))
+        rows = {item.device_address: item for item in menu if item.device_address}
+        self.assertIs(rows["new"].action, MenuAction.DISPLAY_PAIR)
+        self.assertFalse(rows["old"].enabled)
+        self.assertEqual(
+            rows["old"].label,
+            f"Old Panel · {tr('display_pair_requires_firmware')}",
+        )
+
     def test_every_action_appears_exactly_once(self) -> None:
         actions = [item.action for item in build_menu() if item.action is not None]
 
-        self.assertEqual(sorted(a.value for a in actions), sorted(a.value for a in MenuAction if a is not MenuAction.FIRMWARE_UPDATE))
+        self.assertEqual(sorted(a.value for a in actions), sorted(a.value for a in MenuAction if a not in (MenuAction.FIRMWARE_UPDATE, MenuAction.DISPLAY_PAIR)))
 
     def test_separators_group_the_rows_as_designed(self) -> None:
         shape = [

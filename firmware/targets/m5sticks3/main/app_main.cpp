@@ -1,3 +1,5 @@
+#include <atomic>
+
 #include "M5Unified.h"
 #include "usage_ble/app_events.hpp"
 #include "usage_ble/ble_service.hpp"
@@ -31,7 +33,8 @@ usage_panel::m5::BatteryView latest_battery;
 BleService ble;
 Page page = Page::Overview;
 LinkUpdate ble_link{};
-const char* get_ui_location(void*) { return page_name(page); }
+std::atomic<const char*> status_page{"overview"};
+const char* get_ui_location(void*) { return status_page.load(std::memory_order_relaxed); }
 
 // The advertising name buffer holds 19 characters plus the terminator, and
 // the service appends the four-digit MAC suffix. An empty prefix is rejected
@@ -50,6 +53,7 @@ const BleServiceConfig ble_config{
     .get_ui_location = get_ui_location,
     .ui_context = nullptr,
     .enable_screen_page = true,
+    .enable_display_pair = true,
 };
 }
 
@@ -134,6 +138,7 @@ extern "C" void app_main(void)
         AppEvent event{};
         while (events.receive(event)) {
             if (event.type == AppEventType::Usage) model.apply(event.usage, esp_timer_get_time() / 1000);
+            else if (event.type == AppEventType::DisplayPair) model.set_display_pair(event.display_pair);
             else if (event.type == AppEventType::Link) ble_link = event.link;
             else if (event.type == AppEventType::ScreenPage &&
                      ota_view.phase == OtaPhase::Idle && !ble_link.has_passkey) {
@@ -168,6 +173,7 @@ extern "C" void app_main(void)
             // visible value changed. This keeps countdowns accurate
             // without causing periodic full-screen flicker.
             if (dirty || !has_last_render_key || render_key != last_render_key) {
+                status_page.store(page_name(page, model.display_pair()), std::memory_order_relaxed);
                 const OtaSnapshot display_ota = ota_snapshot_for_display(
                     ota_view, shown_failure.error, show_ota_error);
                 ui.render(model, page, connected,

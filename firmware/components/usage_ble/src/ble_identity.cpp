@@ -67,7 +67,7 @@ bool make_status_json(
     const char* status_name, bool encrypted, const char* ui_location,
     const char* firmware_version, const char* target,
     const OtaSnapshot& ota, bool enable_time_sync,
-    char* output, size_t output_size, bool enable_screen_toggle, bool boot_valid, bool enable_screen_page)
+    char* output, size_t output_size, bool enable_screen_toggle, bool boot_valid, bool enable_screen_page, bool enable_display_pair)
 {
     if (!usage_name_valid(status_name) || !firmware_version || strlen(firmware_version) > 31 ||
         !usage_version_valid(firmware_version[0] == 'v' ? firmware_version + 1 : firmware_version) ||
@@ -88,6 +88,7 @@ bool make_status_json(
         cJSON_AddItemToArray(caps, cJSON_CreateString("ota.folder.v1"));
         if (enable_time_sync) cJSON_AddItemToArray(caps, cJSON_CreateString("time.sync.v1"));
         if (enable_screen_toggle) cJSON_AddItemToArray(caps, cJSON_CreateString("screen.toggle.v1"));
+        if (enable_display_pair) cJSON_AddItemToArray(caps, cJSON_CreateString("display.pair.v1"));
         if (enable_screen_page) cJSON_AddItemToArray(caps, cJSON_CreateString("screen.page.v1"));
     }
     cJSON_AddStringToObject(root, "firmware_project", "quotaframe");

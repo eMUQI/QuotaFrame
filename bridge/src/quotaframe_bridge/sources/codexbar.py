@@ -33,6 +33,7 @@ from quotaframe_bridge.sources.codexbar_dependency import (
     DependencyDownloadError, install_cli, verified_cli,
 )
 from quotaframe_bridge.domain.models import (
+    BASE_PROVIDERS,
     Provider,
     ProviderUsage,
     SourceState,
@@ -233,7 +234,7 @@ def parse_codexbar_json(
     if not isinstance(decoded, list):
         raise SourceDataError("top-level JSON must be an array")
 
-    supported = {provider.value: provider for provider in Provider}
+    supported = {provider.value: provider for provider in BASE_PROVIDERS}
     records: dict[Provider, dict[str, Any]] = {}
     for index, item in enumerate(decoded):
         raw = _mapping(item, f"result[{index}]")
@@ -246,7 +247,7 @@ def parse_codexbar_json(
         records[provider] = raw
 
     output: dict[Provider, ProviderUsage] = {}
-    for provider in Provider:
+    for provider in BASE_PROVIDERS:
         raw = records.get(provider)
         if raw is None or "error" in raw:
             output[provider] = _unavailable(provider, attempted_at)
@@ -280,10 +281,10 @@ _NO_WINDOW = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
 
 
 async def _run_process(
-    argv: tuple[str, ...], timeout: float
+    argv: tuple[str, ...], timeout: float, *,
+    environment: dict[str, str] | None = None, cwd: str | None = None,
 ) -> tuple[int, str, str]:
-    environment = None
-    if sys.platform == "win32":
+    if environment is None and sys.platform == "win32":
         environment = dict(os.environ)
         # The standalone CLI needs the VC runtime bundled with CPython/PyInstaller.
         runtime = str(getattr(sys, "_MEIPASS", sys.base_prefix))
@@ -294,6 +295,8 @@ async def _run_process(
         stderr=asyncio.subprocess.PIPE,
         creationflags=_NO_WINDOW,
         env=environment,
+        cwd=cwd,
+        stdin=asyncio.subprocess.DEVNULL if cwd is not None else None,
     )
     try:
         stdout, stderr = await asyncio.wait_for(process.communicate(), timeout)
@@ -423,8 +426,8 @@ class CodexBarResolver:
                     if isinstance(row, dict) and isinstance(row.get("provider"), str)
                     and isinstance(row.get("enabled"), bool)
                 }
-                if all(provider.value in statuses for provider in Provider):
-                    return {provider for provider in Provider if statuses[provider.value]}
+                if all(provider.value in statuses for provider in BASE_PROVIDERS):
+                    return {provider for provider in BASE_PROVIDERS if statuses[provider.value]}
             raise SourceDataError("CodexBar config lacks provider status rows")
         except _PROBE_ERRORS:
             if self._dialect.platform != "win32":
@@ -436,7 +439,7 @@ class CodexBarResolver:
         enabled = settings.get("enabled_providers")
         if not isinstance(enabled, list) or not all(isinstance(name, str) for name in enabled):
             raise SourceDataError("Win-CodexBar config lacks a valid enabled provider list")
-        return {provider for provider in Provider if provider.value in enabled}
+        return {provider for provider in BASE_PROVIDERS if provider.value in enabled}
 
     async def _collect_candidate(
         self, executable: Path, attempted_at: int, on_update: UsageUpdate | None,
@@ -453,7 +456,7 @@ class CodexBarResolver:
 
         async with asyncio.TaskGroup() as group:
             queries = [
-                group.create_task(query(provider)) for provider in Provider if provider in enabled
+                group.create_task(query(provider)) for provider in BASE_PROVIDERS if provider in enabled
             ]
             for index, completed in enumerate(asyncio.as_completed(queries), start=1):
                 usage = await completed
@@ -467,7 +470,7 @@ class CodexBarResolver:
             raise SourceDataError("CodexBar returned no supported usage results")
         return {
             provider: results.get(provider) or _unavailable(provider, attempted_at)
-            for provider in Provider
+            for provider in BASE_PROVIDERS
         }
 
     async def _has_cli_identity(self, executable: Path) -> bool:

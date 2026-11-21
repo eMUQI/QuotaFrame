@@ -109,6 +109,7 @@ class MenuBarApplication(FirmwareUpdateActions):
             on_add_device=self._add_device,
             on_repair=self._repair,
             on_forget_device=self._forget_device,
+            on_display_pair=self._choose_display_pair,
             on_toggle_autostart=self._toggle_autostart,
             on_open_log=self._open_log,
             on_quit=self._quit,
@@ -220,6 +221,26 @@ class MenuBarApplication(FirmwareUpdateActions):
         """Explain the manual steps; nothing here can remove a bond."""
 
         self._dialogs.show_repair_guidance()
+
+    def _choose_display_pair(self, address: str) -> None:
+        loop, graph = self._loop, self._graph
+        if loop is None or graph is None or self._stopping:
+            return
+        device = graph.get(address)
+        if device is None or not device.session.supports_display_pair:
+            return
+        pair = self._dialogs.choose_display_pair(device.name, device.session.display_pair)
+        if pair is None:
+            return
+
+        def save() -> None:
+            try:
+                graph.set_display_pair(address, pair, expected=device)
+            except (OSError, RuntimeError):
+                LOGGER.exception("display combination could not be saved")
+                self._controller.notify(tr("display_pair"), tr("display_pair_save_failed", name=device.name))
+
+        loop.call_soon_threadsafe(save)
 
     def _forget_device(self) -> None:
         """Ask which adopted board to drop, then drop it on the worker loop.

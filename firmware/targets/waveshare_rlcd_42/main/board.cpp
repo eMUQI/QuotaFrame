@@ -220,8 +220,7 @@ void Board::sample_trend(View &v) {
                 if (!bytes)
                     break;
                 if (bytes != sizeof(p) || v.trend_count == kTrendPoints ||
-                    p.epoch < kMinTrendEpoch || (p.codex > 100 && p.codex != 255) ||
-                    (p.claude > 100 && p.claude != 255)) {
+                    p.epoch < kMinTrendEpoch || !p.valid_values()) {
                     valid = false;
                     break;
                 }
@@ -234,8 +233,11 @@ void Board::sample_trend(View &v) {
             v.trend_count = 0;
         }
     }
-    const uint32_t epoch = std::max(v.model.estimated_epoch(Provider::Codex, v.now_ms),
-                                    v.model.estimated_epoch(Provider::Claude, v.now_ms));
+    const uint32_t epoch = std::max({
+        v.model.estimated_epoch(Provider::Codex, v.now_ms),
+        v.model.estimated_epoch(Provider::Claude, v.now_ms),
+        v.model.estimated_epoch(Provider::Gemini, v.now_ms),
+    });
     if (epoch < kMinTrendEpoch || !v.link.encrypted ||
         (v.trend_count &&
          epoch / kTrendIntervalSeconds <= v.trend[v.trend_count - 1].epoch / kTrendIntervalSeconds))
@@ -252,7 +254,7 @@ void Board::sample_trend(View &v) {
         std::move(trend.begin() + 1, trend.end(), trend.begin());
         --count;
     }
-    trend[count++] = {epoch, value(Provider::Codex), value(Provider::Claude), {}};
+    trend[count++] = {epoch, value(Provider::Codex), value(Provider::Claude), {value(Provider::Gemini), 1}};
     FILE *f = fopen(kTrendTemp, "wb");
     if (!f)
         return;

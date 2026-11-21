@@ -72,6 +72,8 @@ class Navigator {
   public:
     /** Next ring page; portrait orientation has a Home / Clock ring. */
     static Page next(Page page, bool portrait);
+
+    void reset_alert(size_t slot) { dismissed_[slot] = announced_[slot] = false; }
     /** Previous ring page; returns Home when `page` is outside the current ring. */
     static Page previous(Page page, bool portrait);
 

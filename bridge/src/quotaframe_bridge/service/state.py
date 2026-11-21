@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from types import MappingProxyType
 
-from quotaframe_bridge.domain.models import Provider, ProviderUsage, SourceState
+from quotaframe_bridge.domain.models import BASE_PROVIDERS, Provider, ProviderUsage, SourceState
 
 
 class UsageStateStore:
@@ -34,7 +34,8 @@ class UsageStateStore:
         """Merge a batch, preserving untouched providers during partial updates."""
 
         self.last_collection_attempt = attempted_at
-        for provider in Provider:
+        affected = (*BASE_PROVIDERS, Provider.GEMINI) if Provider.GEMINI in collection else BASE_PROVIDERS
+        for provider in affected:
             usage = collection.get(provider)
             if usage is None:
                 if partial and provider in self._providers:
@@ -63,6 +64,6 @@ class UsageStateStore:
                 state=SourceState.UNAVAILABLE,
                 sampled_at=attempted_at,
             )
-            for provider in Provider
+            for provider in BASE_PROVIDERS
         }
         return self.merge_collection(unavailable, attempted_at=attempted_at)

@@ -37,13 +37,14 @@ Screens screens(canvas);
 Navigator nav;
 View view;
 std::atomic<Page> location{Page::Home};
+std::atomic<DisplayPair> status_pair{DisplayPair::CodexClaude};
 
 const char *page_name(void *) {
     switch (location.load()) {
     case Page::Codex:
-        return "codex";
+        return provider_name(display_provider(status_pair.load(), 0));
     case Page::Claude:
-        return "claude";
+        return provider_name(display_provider(status_pair.load(), 1));
     case Page::Trend:
         return "trend";
     case Page::Clock:
@@ -81,7 +82,7 @@ extern "C" void app_main() {
     // No OTA power source is registered: the board senses battery voltage only and cannot tell
     // whether USB power is present, so a voltage threshold would block updates on USB power.
     BleServiceConfig config{kAdvertisingPrefix, "Waveshare RLCD 4.2", "waveshare_rlcd_42", true,
-                            &ota, page_name, nullptr, true, true};
+                            &ota, page_name, nullptr, true, true, true};
     ESP_ERROR_CHECK(ble.start(events, config));
 
     uint64_t next_poll = 0, next_frame = 0, reboot_at = 0;
@@ -112,6 +113,18 @@ extern "C" void app_main() {
             switch (event.type) {
             case AppEventType::Usage:
                 view.model.apply(event.usage, view.now_ms);
+                break;
+            case AppEventType::DisplayPair:
+                if (event.display_pair != view.model.display_pair()) {
+                    for (size_t slot = 0; slot < 2; ++slot) {
+                        if (view.model.display_provider(slot) != display_provider(event.display_pair, slot)) {
+                            view.warning[slot] = 0;
+                            nav.reset_alert(slot);
+                        }
+                    }
+                    status_pair.store(event.display_pair);
+                    view.model.set_display_pair(event.display_pair);
+                }
                 break;
             case AppEventType::Link:
                 view.link = {event.link.connected, event.link.encrypted, event.link.has_passkey,
@@ -146,7 +159,7 @@ extern "C" void app_main() {
         }
 
         for (int i = 0; i < 2; ++i) {
-            const auto &s = view.model.snapshot(i ? Provider::Claude : Provider::Codex);
+            const auto &s = view.model.snapshot(view.model.display_provider(i));
             view.warning[i] = short_present(s, view.link.encrypted)
                                   ? warning_level(view.warning[i], s.short_window.used_percent)
                                   : 0;

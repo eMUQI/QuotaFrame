@@ -7,6 +7,7 @@ namespace usage_panel {
 bool TimedRenderKey::operator==(const TimedRenderKey& other) const
 {
     return page == other.page &&
+           display_pair == other.display_pair &&
            first_state == other.first_state &&
            second_state == other.second_state &&
            std::strcmp(overview_countdowns[0], other.overview_countdowns[0]) == 0 &&
@@ -22,15 +23,16 @@ TimedRenderKey make_timed_render_key(
 {
     TimedRenderKey key{};
     key.page = page;
+    key.display_pair = model.display_pair();
     key.presentation = presentation;
 
     // Both providers remain visible in the overview and screensaver, even
     // when the screensaver was entered from a single-provider detail page.
     if (page == Page::Overview || presentation.screensaver.active) {
-        key.first_state = model.display_state(Provider::Codex, connected);
-        key.second_state = model.display_state(Provider::Claude, connected);
+        key.first_state = model.display_state(model.display_provider(0), connected);
+        key.second_state = model.display_state(model.display_provider(1), connected);
         if (!presentation.screensaver.active) {
-            const Provider providers[] = {Provider::Codex, Provider::Claude};
+            const Provider providers[] = {model.display_provider(0), model.display_provider(1)};
             const DisplayState states[] = {key.first_state, key.second_state};
             for (size_t i = 0; i < 2; ++i) {
                 // Non-online cards display status text instead of a countdown.
@@ -45,7 +47,7 @@ TimedRenderKey make_timed_render_key(
     }
 
     const Provider provider =
-        page == Page::Codex ? Provider::Codex : Provider::Claude;
+        model.display_provider(page == Page::Codex ? 0 : 1);
     key.first_state = model.display_state(provider, connected);
 
     const auto& snapshot = model.snapshot(provider);

@@ -17,9 +17,10 @@ namespace usage_panel {
  */
 struct TimedRenderKey {
     Page page = Page::Overview;
+    DisplayPair display_pair = DisplayPair::CodexClaude;
     DisplayState first_state = DisplayState::NoData;
     DisplayState second_state = DisplayState::NoData;
-    char overview_countdowns[2][16]{};  // Codex and Claude short-window labels.
+    char overview_countdowns[2][16]{};  // Short-window labels in display order.
     char short_countdown[16]{};
     char week_countdown[16]{};
     PanelPresentation presentation{};

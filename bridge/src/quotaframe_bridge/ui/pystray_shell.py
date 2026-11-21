@@ -12,6 +12,7 @@ from collections.abc import Callable
 import pystray
 from PIL import Image
 
+from quotaframe_bridge.domain.models import DisplayPair
 from quotaframe_bridge.i18n import tr
 from quotaframe_bridge.paths import tray_assets
 from quotaframe_bridge.ui.status import DeviceStatus, TrayState
@@ -151,6 +152,7 @@ class PystrayShell:
         on_open_log: Callable[[], None],
         on_quit: Callable[[], None],
         device_labels: tuple[str, ...],
+        on_display_pair: Callable[[str, DisplayPair], None] = lambda _address, _pair: None,
         can_auto_quit: Callable[[], bool] = lambda: True,
         on_auto_quit: Callable[[], None] | None = None,
         on_bridge_update: Callable[[], None] = lambda: None,
@@ -171,6 +173,7 @@ class PystrayShell:
         self._on_repair = on_repair
         self._on_firmware_update = on_firmware_update
         self._on_forget_device = on_forget_device
+        self._on_display_pair = on_display_pair
         self._on_toggle_autostart = on_toggle_autostart
         self._on_open_log = on_open_log
         self._on_quit = on_quit
@@ -259,12 +262,35 @@ class PystrayShell:
         def firmware_enabled(label: str) -> Callable[[object], bool]:
             return lambda _item: firmware_status(label)[0]
 
+        def pair_item(label: str, pair: DisplayPair):
+            def action(_icon: object, _item: object) -> None:
+                if is_current(label) and device_status(label).supports_display_pair:
+                    self._on_display_pair(device_statuses[label].address, pair)
+
+            return item(
+                pair.label,
+                action,
+                checked=lambda _item: device_status(label).display_pair is pair,
+                radio=True,
+            )
+
         def device_menu(label: str) -> pystray.Menu:
             return pystray.Menu(
                 item(
                     firmware_text(label),
                     firmware_action(label),
                     enabled=firmware_enabled(label),
+                ),
+                item(
+                    tr("display_pair"),
+                    pystray.Menu(*(pair_item(label, pair) for pair in DisplayPair)),
+                    visible=lambda _item: device_status(label).supports_display_pair,
+                ),
+                item(
+                    tr("display_pair_requires_firmware"),
+                    None,
+                    enabled=False,
+                    visible=lambda _item: device_status(label).display_pair_requires_firmware,
                 ),
                 item(tr("repair_menu"), repair_action(label)),
                 item(tr("forget_menu"), forget_action(label)),
@@ -355,7 +381,10 @@ class PystrayShell:
         labels = tuple(device.address or device.label for device in devices)
         statuses = {device.address or device.label: device for device in devices}
         shape_changed = labels != tuple(current_statuses) or any(
-            status.address != current_statuses[label].address or status.session is not current_statuses[label].session
+            status.address != current_statuses[label].address
+            or status.session is not current_statuses[label].session
+            or status.supports_display_pair != current_statuses[label].supports_display_pair
+            or status.display_pair_requires_firmware != current_statuses[label].display_pair_requires_firmware
             for label, status in statuses.items() if label in current_statuses
         )
         if not shape_changed:
