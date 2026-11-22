@@ -1,3 +1,3 @@
 """Windows and macOS BLE bridge for the supported ESP32-S3 usage panels."""
 
-__version__ = "1.2.1"
+__version__ = "1.3.0"
